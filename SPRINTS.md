@@ -5,7 +5,7 @@
 **Entregáveis**:
 
 - [ ]  Repositório no GitHub criado, README inicial
-- [ ]  GitHub Project (Kanban) configurado com colunas e automações
+- [x]  GitHub Project (Kanban) configurado com colunas e automações
 - [ ]  `docker-compose.yml` com 3 serviços: nginx, frontend (skeleton React), backend (skeleton Flask)
 - [ ]  `docker compose up` levanta tudo, página inicial responde em http://localhost
 - [ ]  Projeto Supabase criado, Auth configurado

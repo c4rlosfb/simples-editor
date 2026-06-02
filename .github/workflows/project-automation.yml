@@ -1,0 +1,20 @@
+name: Project Automation
+
+on:
+  issues:
+    types:
+      - opened
+  pull_request:
+    types:
+      - opened
+
+jobs:
+  add-to-project:
+    name: Add issue/PR to project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add to GitHub Project
+        uses: actions/add-to-project@v0.5.0
+        with:
+          project-url: https://github.com/users/${{ github.repository_owner }}/projects/1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
