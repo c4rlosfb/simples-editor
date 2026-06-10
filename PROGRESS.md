@@ -34,13 +34,13 @@
 
 ## Sprint 4
 
-- [ ] feat(backend): add websocket run endpoint
+- [x] feat(backend): add websocket run endpoint
 - [ ] feat(frontend): integrate xtermjs terminal panel
-- [ ] feat(devops): build simples-runner image with qemu-user-static
-- [ ] feat(backend): implement pty execution strategy
-- [ ] feat(backend): bridge websocket and pty streams
+- [x] feat(devops): build simples-runner image with qemu-user-static
+- [x] feat(backend): implement pty execution strategy
+- [x] feat(backend): bridge websocket and pty streams
 - [ ] feat(backend): support interactive leia end to end
-- [ ] feat(backend): implement websocket protocol events
+- [x] feat(backend): implement websocket protocol events
 
 ## Sprint 5
 
