@@ -1,6 +1,14 @@
 # Configuração de Domínio Próprio
 
+> **Nota:** Este é um guia de referência para ser usado **após o deploy da VM na Oracle Cloud** (ver `terraform/README.md` e PRD §14.7). As instruções abaixo pressupõem que a instância OCI já está provisionada e a aplicação está rodando.
+
 Para habilitar a presença pública do **Simples Editor** em um domínio próprio (ex: `simples.seu-dominio.edu.br`), siga as instruções abaixo.
+
+## Pré-requisitos
+
+- [ ] VM OCI Ampere A1 provisionada (via Terraform em `terraform/`)
+- [ ] Aplicação rodando na VM (`docker compose up -d`)
+- [ ] Domínio registrado com acesso ao painel DNS
 
 ## 1. Apontamento de DNS
 
@@ -14,7 +22,13 @@ Aguarde a propagação do DNS (pode levar alguns minutos a algumas horas). Verif
 
 ## 2. Configuração do Nginx e Let's Encrypt (TLS)
 
-Após a propagação, execute os comandos abaixo na instância OCI (conforme detalhado no PRD §14.7.5) para gerar os certificados TLS gratuitos e habilitar o HTTPS:
+Após a propagação, execute os comandos abaixo na instância OCI. Como alternativa, use o script `setup-tls.sh` provisionado pelo cloud-init (`/home/ubuntu/setup-tls.sh`):
+
+```bash
+# Opção 1: Script automatizado (recomendado)
+sudo DOMAIN=simples.seu-dominio.edu.br EMAIL=admin@seu-dominio.edu.br /home/ubuntu/setup-tls.sh
+
+# Opção 2: Passo a passo manual
 
 ```bash
 # Instalar certbot
@@ -45,5 +59,5 @@ echo "0 3 * * * certbot renew --quiet --post-hook 'cd /home/ubuntu/simples-onlin
 ```
 
 ## Validação (Critérios de Aceite)
-- [x] Domínio próprio apontando para o IP da OCI.
-- [x] Domínio resolvendo e acessível publicamente via HTTPS.
+- [ ] Domínio próprio apontando para o IP da OCI (requer deploy prévio da VM).
+- [ ] Domínio resolvendo e acessível publicamente via HTTPS (requer execução do setup-tls.sh).
