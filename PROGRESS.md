@@ -8,7 +8,7 @@
 - [ ] feat(devops): make docker compose up serve the homepage
 - [x] feat(backend): configure supabase auth integration
 - [ ] feat(frontend): add email and password login screen
-- [ ] feat(backend): add verify_jwt decorator for protected endpoints
+- [x] feat(backend): add verify_jwt decorator for protected endpoints
 - [ ] feat(backend): expose api health status endpoint
 - [ ] feat(devops): validate one merged pr per contributor
 
