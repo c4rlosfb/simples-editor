@@ -10,7 +10,7 @@
 - [ ] feat(frontend): add email and password login screen
 - [ ] feat(backend): add verify_jwt decorator for protected endpoints
 - [ ] feat(backend): expose api health status endpoint
-- [ ] feat(devops): validate one merged pr per contributor
+- [x] feat(devops): validate one merged pr per contributor
 
 ## Sprint 2
 

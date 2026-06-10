@@ -1,0 +1,28 @@
+name: Check Contributor
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if author has a merged PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          AUTHOR="${{ github.event.pull_request.user.login }}"
+          COUNT=$(gh pr list --author "$AUTHOR" --state merged --json number --jq 'length' 2>/dev/null || echo 0)
+
+          echo "Author: $AUTHOR"
+          echo "Previous merged PRs: $COUNT"
+
+          if [ "$COUNT" -ge 1 ] || [ "$(gh pr view ${{ github.event.pull_request.number }} --json merged --jq '.merged')" = "true" ]; then
+            echo "PASS: Contributor has previous merged PRs"
+          else
+            echo "WARNING: First PR for this contributor - requesting review"
+            echo "This is the first PR from $AUTHOR. Please ensure code review."
+          fi
