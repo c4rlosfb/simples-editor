@@ -11,7 +11,9 @@ function TerminalPanel({ lines }: Props) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminalInstance = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
+  const linesRendered = useRef(0);
 
+  // Initialize terminal once on mount
   useEffect(() => {
     if (!terminalRef.current) return;
 
@@ -43,19 +45,19 @@ function TerminalPanel({ lines }: Props) {
     };
   }, []);
 
+  // Append new lines without clearing the terminal
   useEffect(() => {
     const term = terminalInstance.current;
     if (!term) return;
 
-    // Clear and re-render lines
-    term.clear();
-    term.writeln('Bem-vindo ao Simples Editor!');
-    term.writeln('Pressione Run para compilar e executar.');
-    if (lines.length === 0) {
-      term.write('$ ');
-    } else {
-      lines.forEach(line => term.writeln(line));
+    // Only write lines that haven't been rendered yet
+    const newLines = lines.slice(linesRendered.current);
+    if (newLines.length === 0) return;
+
+    for (const line of newLines) {
+      term.writeln(line);
     }
+    linesRendered.current = lines.length;
   }, [lines]);
 
   // Fit terminal on resize
