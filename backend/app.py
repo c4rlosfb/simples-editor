@@ -56,7 +56,7 @@ def ws_run(ws):
 
     try:
         # Receive initial message with source code
-        raw = ws.receive()
+        raw = ws.receive(timeout=10)
         if not raw:
             return
 
@@ -71,12 +71,44 @@ def ws_run(ws):
             ws.send(json.dumps({"type": "error", "message": "Codigo vazio"}))
             return
 
-        # Run the full pipeline asynchronously
-        async def run_pipeline():
-            async for event in compiler_service.compile_and_run(code):
-                ws.send(json.dumps(event))
+        # Run pipeline + listen for stdin concurrently
+        async def run_pipeline(ws, code):
+            gen = compiler_service.compile_and_run(code)
 
-        loop.run_until_complete(run_pipeline())
+            async def consume_events():
+                async for event in gen:
+                    ws.send(json.dumps(event))
+
+            async def listen_stdin():
+                while True:
+                    try:
+                        raw = ws.receive(timeout=30)
+                        if not raw:
+                            break
+                        msg = json.loads(raw)
+                        if msg.get("type") == "stdin":
+                            data = msg.get("data", "")
+                            if isinstance(data, str):
+                                data = data.encode()
+                            compiler_service.pty_strategy.send_stdin(data)
+                        elif msg.get("type") == "stop":
+                            compiler_service.pty_strategy.stop()
+                            break
+                    except Exception:
+                        break
+
+            event_task = asyncio.ensure_future(consume_events())
+            stdin_task = asyncio.ensure_future(listen_stdin())
+
+            done, pending = await asyncio.wait(
+                [event_task, stdin_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+
+            for task in pending:
+                task.cancel()
+
+        loop.run_until_complete(run_pipeline(ws, code))
 
     except Exception as e:
         logger.exception("WebSocket error")

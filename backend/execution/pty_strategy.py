@@ -63,6 +63,9 @@ class PtyExecutionStrategy:
             if hasattr(sock, "setblocking"):
                 sock.setblocking(False)
 
+            # Store reference for send_stdin
+            self._sock = sock
+
             # 3. Run the execution loop with timeout
             try:
                 async with asyncio.timeout(self.execution_timeout):
@@ -116,8 +119,19 @@ class PtyExecutionStrategy:
         """
         Send stdin data to the running container.
         Called from the WebSocket stdin handler.
+        Writes to the multiplexed attach socket on channel 0 (stdin).
         """
         logger.debug(f"stdin: {data!r}")
+        if hasattr(self, '_sock') and self._sock:
+            try:
+                # Docker multiplexed stream: frame = [channel(1B) + type(1B) + size(4B) + data]
+                import struct
+                frame = struct.pack('>BB', 0, 0)  # channel 0 (stdin), type 0
+                frame += struct.pack('>I', len(data))
+                frame += data if isinstance(data, bytes) else data.encode()
+                self._sock.write(frame)
+            except Exception as e:
+                logger.warning(f"Failed to write stdin: {e}")
 
     def stop(self, container):
         """Stop an execution mid-flight (SIGTERM -> SIGKILL)."""
