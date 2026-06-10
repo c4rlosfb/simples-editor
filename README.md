@@ -1,20 +1,30 @@
 # Simples Editor
 
-**Simples Editor** é uma IDE web que permite escrever, compilar e executar programas na linguagem **SIMPLES** diretamente no navegador, sem nenhuma instalação local. 
+**Simples Editor** é uma IDE web que permite escrever, compilar e executar programas na linguagem **SIMPLES** diretamente no navegador, sem nenhuma instalação local.
 
-O ambiente conta com três painéis:
-- **Editor SIMPLES**: code editor com syntax highlighting.
-- **Painel NASM x32**: mostra o assembly gerado em tempo real.
-- **Terminal interativo**: emulador de terminal (xterm.js) para input/output real.
+> **Status:** 🚧 Em desenvolvimento inicial — fase de planejamento e documentação. Veja [PROGRESS.md](PROGRESS.md) e [SPRINTS.md](SPRINTS.md) para acompanhar o progresso.
 
-## Como começar (Ambiente de Desenvolvimento)
+O ambiente planejado conta com três painéis:
+- **Editor SIMPLES**: code editor com syntax highlighting das 27 palavras reservadas.
+- **Painel NASM x32**: mostra o assembly gerado lado a lado com o código fonte.
+- **Terminal interativo**: emulador de terminal (xterm.js) para input/output real via `leia`/`escreva`.
 
-### Pré-requisitos
+## Documentação
+
+- [PRD — Product Requirements Document](prd-simples-online.md) — Especificação completa (arquitetura, stack, API, segurança, roadmap).
+- [SPRINTS.md](SPRINTS.md) — Planejamento dos 6 sprints com entregáveis.
+- [PROGRESS.md](PROGRESS.md) — Checklist de progresso por sprint.
+
+## Como começar (Ambiente de Desenvolvimento) 🚧
+
+> As instruções abaixo descrevem o fluxo **planejado** de desenvolvimento local. O `docker compose up` e os serviços ainda não estão implementados — aguardando Sprint 1.
+
+### Pré-requisitos (planejados)
 - Docker Engine 24+ ou Docker Desktop
 - Docker Compose v2
 - Conta no Supabase (para gerenciar a autenticação)
 
-### Passo a passo para rodar localmente
+### Passo a passo (planejado)
 
 1. Clone o repositório (com submodules):
    ```bash
@@ -37,4 +47,12 @@ O ambiente conta com três painéis:
    - Frontend: `http://localhost`
    - Backend health check: `http://localhost/api/health`
 
-Consulte a documentação técnica principal (`prd-simples-online.md`) para obter mais informações de arquitetura e infraestrutura.
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Frontend | React + TanStack Start + Monaco Editor + xterm.js + Tailwind |
+| Backend | Python (Flask + flask-sock + docker SDK) |
+| Sandbox | Docker descartável com `qemu-user-static` (roda binários x86 em ARM64) |
+| Infra | Docker Compose + Nginx reverse proxy + Oracle Cloud Ampere A1 (Always Free) |
+| Auth | Supabase (JWT) |
