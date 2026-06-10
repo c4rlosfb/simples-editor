@@ -6,11 +6,11 @@
 - [ ] feat(devops): configure github project board and automations
 - [ ] feat(devops): define docker compose stack for frontend and backend
 - [ ] feat(devops): make docker compose up serve the homepage
-- [ ] feat(backend): configure supabase auth integration
-- [x] feat(frontend): add email and password login screen
+- [x] feat(backend): configure supabase auth integration
+- [ ] feat(frontend): add email and password login screen
 - [ ] feat(backend): add verify_jwt decorator for protected endpoints
 - [ ] feat(backend): expose api health status endpoint
-- [x] feat(devops): validate one merged pr per contributor
+- [ ] feat(devops): validate one merged pr per contributor
 
 ## Sprint 2
 
@@ -24,29 +24,29 @@
 
 ## Sprint 3
 
-- [x] feat(backend): package simplesc in backend container
-- [x] feat(backend): install binutils i686 linker support
-- [x] feat(backend): expose post api compile endpoint
-- [x] feat(backend): parse compile errors with line column and phase
+- [ ] feat(backend): package simplesc in backend container
+- [ ] feat(backend): install binutils i686 linker support
+- [ ] feat(backend): expose post api compile endpoint
+- [ ] feat(backend): parse compile errors with line column and phase
 - [ ] feat(frontend): render compile errors as monaco markers
 - [ ] feat(frontend): auto populate nasm panel after compile
 - [ ] feat(backend): enforce compile timeout for pipeline stages
 
 ## Sprint 4
 
-- [x] feat(backend): add websocket run endpoint
+- [ ] feat(backend): add websocket run endpoint
 - [ ] feat(frontend): integrate xtermjs terminal panel
-- [x] feat(devops): build simples-runner image with qemu-user-static
-- [x] feat(backend): implement pty execution strategy
-- [x] feat(backend): bridge websocket and pty streams
+- [ ] feat(devops): build simples-runner image with qemu-user-static
+- [ ] feat(backend): implement pty execution strategy
+- [ ] feat(backend): bridge websocket and pty streams
 - [ ] feat(backend): support interactive leia end to end
-- [x] feat(backend): implement websocket protocol events
+- [ ] feat(backend): implement websocket protocol events
 
 ## Sprint 5
 
 - [ ] feat(frontend): wire stop button to backend stop signal
 - [ ] feat(backend): enforce wall clock execution timeout
-- [x] feat(devops): set docker hard stop timeout
+- [ ] feat(devops): set docker hard stop timeout
 - [ ] feat(security): apply sandbox isolation flags
 - [ ] feat(backend): add per user execution rate limit
 - [ ] feat(devops): emit structured json logs
