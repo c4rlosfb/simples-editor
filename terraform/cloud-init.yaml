@@ -8,6 +8,24 @@ write_files:
       # Liberar 80/443 — adicionado pelo cloud-init
       -I INPUT 6 -m state --state NEW -p tcp --dport 80  -j ACCEPT
       -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+  - path: /home/ubuntu/setup-tls.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # Script de setup TLS via Let's Encrypt.
+      # Execute APÓS apontar o DNS do domínio para o IP público desta VM.
+      # Uso: sudo DOMAIN=simples.seu-dominio.edu.br EMAIL=admin@seu-dominio.edu.br ./setup-tls.sh
+      set -e
+      DOMAIN=${DOMAIN:?DOMAIN required}
+      EMAIL=${EMAIL:?EMAIL required}
+      snap install --classic certbot
+      ln -sf /snap/bin/certbot /usr/bin/certbot
+      certbot certonly --standalone -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL"
+      mkdir -p /home/ubuntu/simples-online/nginx/certs
+      cp /etc/letsencrypt/live/"$DOMAIN"/fullchain.pem /home/ubuntu/simples-online/nginx/certs/
+      cp /etc/letsencrypt/live/"$DOMAIN"/privkey.pem   /home/ubuntu/simples-online/nginx/certs/
+      echo "0 3 * * * certbot renew --quiet --post-hook 'cd /home/ubuntu/simples-online && docker compose restart nginx'" | crontab -
+      echo "TLS configurado para $DOMAIN"
 
 runcmd:
   # Liberar firewall do host
