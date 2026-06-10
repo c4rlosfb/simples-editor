@@ -5,7 +5,7 @@
 - [ ] feat(docs): add initial README and repo bootstrap
 - [ ] feat(devops): configure github project board and automations
 - [ ] feat(devops): define docker compose stack for frontend and backend
-- [ ] feat(devops): make docker compose up serve the homepage
+- [x] feat(devops): make docker compose up serve the homepage
 - [ ] feat(backend): configure supabase auth integration
 - [ ] feat(frontend): add email and password login screen
 - [ ] feat(backend): add verify_jwt decorator for protected endpoints
