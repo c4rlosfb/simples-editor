@@ -5,14 +5,14 @@ class: lead
 ---
 
 # Simples Editor
-**Web IDE para Educação e Entrevistas**
+**Web IDE para a Disciplina de Compiladores**
 
 ---
 
 ## O Problema
 - Execução de código insegura em ambientes compartilhados.
-- Dificuldade na avaliação técnica de candidatos.
-- Falta de ferramentas simples e focadas no básico.
+- Instalação complexa de toolchain (NASM, ld) para alunos.
+- Falta de ferramentas focadas no aprendizado de compiladores.
 
 ---
 
@@ -26,8 +26,8 @@ class: lead
 
 ## Arquitetura
 - **Frontend**: React + Monaco Editor + xterm.js
-- **Backend**: Python (FastAPI/Flask)
-- **Infraestrutura**: Docker (Restrito, `--network=none`, limits)
+- **Backend**: Python (Flask + WebSocket)
+- **Infraestrutura**: Docker (sandbox, `--network=none`, limits)
 
 ---
 
@@ -37,9 +37,10 @@ class: lead
 ---
 
 ## Próximos Passos
-- Suporte a mais linguagens.
-- Modo colaborativo.
-- Histórico de execuções.
+- Salvar histórico de código.
+- Modo colaborativo (compartilhar snippet via URL).
+- Pool de sandboxes pré-aquecido para latência < 100ms.
+- Modo passo-a-passo (debugger).
 
 ---
 
