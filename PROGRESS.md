@@ -56,7 +56,7 @@
 
 ## Sprint 6
 
-- [ ] feat(frontend): add playwright e2e coverage for core flow
+- [x] feat(frontend): add playwright e2e coverage for core flow
 - [ ] feat(backend): reach seventy percent test coverage
 - [ ] feat(docs): complete readme with gifs and screenshots
 - [ ] feat(docs): produce demo video asset
