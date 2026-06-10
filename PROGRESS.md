@@ -15,7 +15,7 @@
 ## Sprint 2
 
 - [ ] feat(frontend): integrate monaco editor on main route
-- [ ] feat(frontend): register simples language tokenizer with monarch
+- [x] feat(frontend): register simples language tokenizer with monarch
 - [ ] feat(frontend): add dark theme with highlighted keywords
 - [ ] feat(frontend): build three-panel layout with nasm viewer
 - [ ] feat(frontend): add resizable splitter with double click collapse
