@@ -19,24 +19,35 @@ jobs:
         run: |
           echo "## PR Coverage Report" > pr-report.md
           echo "" >> pr-report.md
-          echo "| Contributor | Merged PRs | Status |" >> pr-report.md
-          echo "|------------|------------|--------|" >> pr-report.md
+          echo "| Contributor | GitHub Login | Merged PRs | Status |" >> pr-report.md
+          echo "|------------|-------------|------------|--------|" >> pr-report.md
 
-          # Get all contributors from git log
-          git log --format="%aN" --all | sort -u | while read author; do
+          # Get all contributors from git log, extract GitHub login from noreply email
+          # Format: "ID+LOGIN@users.noreply.github.com" -> extract LOGIN
+          git log --format="%aN|%ae" --all | sort -u | while IFS='|' read -r name email; do
             # Skip bots
-            case "$author" in
-              *bot*|*Bot*|*[bot]*) continue ;;
+            case "$name" in
+              *bot*|*Bot*|*\[bot\]*) continue ;;
             esac
 
-            # Count merged PRs by this author
-            count=$(gh pr list --author "$author" --state merged --json number --jq 'length' 2>/dev/null || echo 0)
+            # Extract GitHub login from noreply email, fallback to author name
+            if [[ "$email" == *"+""@"*"users.noreply.github.com" ]]; then
+              login="${email#*+}"
+              login="${login%@*}"
+            else
+              # For non-noreply emails, use git author name as fallback
+              login="$name"
+            fi
+
+            # Count merged PRs by this GitHub login
+            count=$(gh pr list --author "$login" --state merged --json number --jq 'length' 2>/dev/null </dev/null || echo 0)
+
             if [ "$count" -ge 1 ]; then
               status="PASS"
             else
               status="FAIL"
             fi
-            echo "| $author | $count | $status |" >> pr-report.md
+            echo "| $name | $login | $count | $status |" >> pr-report.md
           done
 
           echo "" >> pr-report.md
