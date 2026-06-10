@@ -59,7 +59,7 @@
 - [ ] feat(frontend): add playwright e2e coverage for core flow
 - [ ] feat(backend): reach seventy percent test coverage
 - [ ] feat(docs): complete readme with gifs and screenshots
-- [ ] feat(docs): produce demo video asset
+- [x] feat(docs): produce demo video asset
 - [ ] feat(devops): deploy simples editor on oracle cloud ampere a1
 - [ ] feat(devops): configure custom domain for optional deployment
 - [ ] feat(docs): prepare final presentation materials
