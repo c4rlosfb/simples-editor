@@ -30,7 +30,7 @@
 - [ ] feat(backend): parse compile errors with line column and phase
 - [ ] feat(frontend): render compile errors as monaco markers
 - [ ] feat(frontend): auto populate nasm panel after compile
-- [ ] feat(backend): enforce compile timeout for pipeline stages
+- [x] feat(backend): enforce compile timeout for pipeline stages
 
 ## Sprint 4
 
