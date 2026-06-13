@@ -49,7 +49,7 @@
 - [ ] feat(devops): set docker hard stop timeout
 - [ ] feat(security): apply sandbox isolation flags
 - [ ] feat(backend): add per user execution rate limit
-- [ ] feat(devops): emit structured json logs
+- [x] feat(devops): emit structured json logs
 - [ ] feat(backend): expose prometheus metrics endpoint
 - [ ] feat(security): audit sandbox escape scenarios
 - [ ] feat(docs): write sandbox incident response playbook
