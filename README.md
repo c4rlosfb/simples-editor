@@ -65,6 +65,195 @@ Tudo roda em containers Docker descartáveis, com 9 camadas de isolamento, sem r
 
 ---
 
+## 📸 Screenshots (Em Breve)
+
+> **Nota sobre honestidade:** Esta seção contém **mockups da interface** criados com arte ASCII e diagramas. As screenshots reais serão adicionadas assim que a IDE estiver em staging — com o frontend, backend e sandbox integrados e rodando. Até lá, estes mockups representam fielmente o layout e os fluxos de interação projetados no [PRD](./prd-simples-online.md) e implementados nos [SPRINTS](./SPRINTS.md).
+
+### Fluxo 1 — Login e Autenticação
+
+```
+┌──────────────────────────────────────────────────────┐
+│                                                      │
+│              🖥️  Simples Editor                      │
+│         Web IDE para a linguagem SIMPLES             │
+│                                                      │
+│   ┌──────────────────────────────────────────────┐   │
+│   │                                              │   │
+│   │   📧  Email                                 │   │
+│   │   ┌──────────────────────────────────────┐   │   │
+│   │   │ aluno@ifsuldeminas.edu.br            │   │   │
+│   │   └──────────────────────────────────────┘   │   │
+│   │                                              │   │
+│   │   🔒  Senha                                 │   │
+│   │   ┌──────────────────────────────────────┐   │   │
+│   │   │ ●●●●●●●●●●                          │   │   │
+│   │   └──────────────────────────────────────┘   │   │
+│   │                                              │   │
+│   │   ┌──────────────────────────────────────┐   │   │
+│   │   │         ▶ Entrar                     │   │   │
+│   │   └──────────────────────────────────────┘   │   │
+│   │                                              │   │
+│   │   Não tem conta? Cadastre-se                 │   │
+│   │                                              │   │
+│   └──────────────────────────────────────────────┘   │
+│                                                      │
+│   🔐 Autenticação via Supabase (JWT)                 │
+│                                                      │
+└──────────────────────────────────────────────────────┘
+```
+
+### Fluxo 2 — Editor com Código SIMPLES (antes de compilar)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Simples Editor                          [aluno@email.com]      [Sair]   │
+├──────────────────────────────────────────────────────────────────────────┤
+│  [▶ Run]   [■ Stop]   [🧹 Limpar]                        [exemplos ▾]   │
+├────────────────────────────────┬─────────────────────────────────────────┤
+│  1│ programa soma_dois         │  ;; NASM x86 32-bit                     │
+│  2│   inteiro a, b, resultado  │  ;; Compile para ver o assembly         │
+│  3│                             │                                         │
+│  4│ inicio                      │                                         │
+│  5│   leia a                    │                                         │
+│  6│   leia b                    │                                         │
+│  7│   resultado := a + b        │                                         │
+│  8│   escreva resultado         │                                         │
+│  9│ fim                         │                                         │
+├────────────────────────────────┴─────────────────────────────────────────┤
+│  Terminal                                                                │
+│  ────────────────────────────────────────────────────────────────────   │
+│  Aguardando compilação...                                                │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo 3 — Compilação com Sucesso (painel NASM preenchido)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Simples Editor                          [aluno@email.com]      [Sair]   │
+├──────────────────────────────────────────────────────────────────────────┤
+│  [▶ Run]   [■ Stop]   [🧹 Limpar]                        [exemplos ▾]   │
+├────────────────────────────────┬─────────────────────────────────────────┤
+│  1│ programa soma_dois         │  section .bss                           │
+│  2│   inteiro a, b, resultado  │      a resd 1                           │
+│  3│                             │      b resd 1                           │
+│  4│ inicio                      │      resultado resd 1                  │
+│  5│   leia a                    │                                         │
+│  6│   leia b                    │  section .text                         │
+│  7│   resultado := a + b        │      global _start                     │
+│  8│   escreva resultado         │  _start:                               │
+│  9│ fim                         │      ; leia a                          │
+│                                │      mov eax, 3                         │
+│                                │      mov ebx, 0                         │
+│                                │      mov ecx, a                         │
+│                                │      mov edx, 4                         │
+│                                │      int 0x80                           │
+│                                │      ; leia b                           │
+│                                │      mov eax, 3                         │
+│                                │      mov ebx, 0                         │
+│                                │      mov ecx, b                         │
+│                                │      mov edx, 4                         │
+│                                │      int 0x80                           │
+│                                │      ; resultado := a + b               │
+│                                │      mov eax, [a]                       │
+│                                │      add eax, [b]                       │
+│                                │      mov [resultado], eax               │
+│                                │      ; escreva resultado                │
+│                                │      ...                                │
+├────────────────────────────────┴─────────────────────────────────────────┤
+│  Terminal                                                    [✅ 0.23s]  │
+│  ────────────────────────────────────────────────────────────────────   │
+│  [simplesc] Compilação concluída (0.02s)                                 │
+│  [nasm]     Montagem concluída (0.01s)                                   │
+│  [ld]       Linkagem concluída (0.01s)                                   │
+│  Binário ELF i386 pronto para execução.                                  │
+│  ▶ Pressione Run novamente para executar.                                │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo 4 — Execução Interativa com `leia`/`escreva`
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Simples Editor                          [aluno@email.com]      [Sair]   │
+├──────────────────────────────────────────────────────────────────────────┤
+│  [▶ Run]   [■ Stop]   [🧹 Limpar]                        [exemplos ▾]   │
+├────────────────────────────────┬─────────────────────────────────────────┤
+│  1│ programa soma_dois         │  section .bss         ◄── readonly      │
+│  2│   inteiro a, b, resultado  │      ...                                 │
+│  3│                             │                                         │
+│  4│ inicio                      │  section .text                          │
+│  5│   leia a                    │      ...                                │
+│  6│   leia b                    │                                         │
+│  7│   resultado := a + b        │                                         │
+│  8│   escreva resultado         │                                         │
+│  9│ fim                         │                                         │
+├────────────────────────────────┴─────────────────────────────────────────┤
+│  Terminal                                           [executando... 0.8s] │
+│  ────────────────────────────────────────────────────────────────────   │
+│  [runner] Container sandbox iniciado (--network=none --read-only)        │
+│  [runner] qemu-i386-static /sandbox/prog                                 │
+│  Digite o primeiro número: 42                      ◄── leia via xterm.js │
+│  Digite o segundo número: 17                                           │
+│  59                                                 ◄── escreva via PTY  │
+│                                                                           │
+│  [exit code: 0 — 1.42s]                                                  │
+│  [runner] Container destruído (--rm)                                     │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fluxo 5 — Erro de Compilação (marcadores no editor)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Simples Editor                          [aluno@email.com]      [Sair]   │
+├──────────────────────────────────────────────────────────────────────────┤
+│  [▶ Run]   [■ Stop]   [🧹 Limpar]                        [exemplos ▾]   │
+├────────────────────────────────┬─────────────────────────────────────────┤
+│  1│ programa teste             │  ;; Erro de compilação                  │
+│  2│   inteiro x                │  ;; Corrija os erros e compile          │
+│  3│                             │  novamente                              │
+│  4│ inicio                      │                                         │
+│  5│   x := 10                   │                                         │
+│  6│🔴 escreva x                 │  ← Erro: 'escreva' não declarado      │
+│  7│ fim                         │                                         │
+├────────────────────────────────┴─────────────────────────────────────────┤
+│  Terminal                                                      [❌ 0.02s]│
+│  ────────────────────────────────────────────────────────────────────   │
+│  [simplesc] ERRO na linha 6, coluna 4:                                  │
+│    identificador 'escreva' não declarado                                 │
+│    Sugestão: use 'escreva' (com 'v')                                     │
+│                                                                           │
+│  Compilação falhou. Corrija os erros e tente novamente.                  │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 📱 Responsividade
+
+```
+┌─────────────────────┐   ┌──────────────────────────────┐
+│  DESKTOP (≥1024px)  │   │  TABLET / NOTEBOOK (≥768px)   │
+│                     │   │                                │
+│  ┌───────┬────────┐ │   │  ┌────────────────────────┐   │
+│  │Editor │ NASM   │ │   │  │ Editor SIMPLES          │   │
+│  │       │        │ │   │  │                          │   │
+│  │       │        │ │   │  └────────────────────────┘   │
+│  ├───────┴────────┤ │   │  ┌────────────────────────┐   │
+│  │ Terminal       │ │   │  │ NASM (toggle)           │   │
+│  └────────────────┘ │   │  └────────────────────────┘   │
+│                     │   │  ┌────────────────────────┐   │
+│  3 painéis lado a   │   │  │ Terminal                │   │
+│  lado com splitters │   │  └────────────────────────┘   │
+│  arrastáveis        │   │                                │
+│                     │   │  Painéis empilhados com        │
+│                     │   │  toggle NASM                   │
+└─────────────────────┘   └──────────────────────────────┘
+```
+
+> **Status atual dos mockups:** Os diagramas ASCII acima representam o layout definido no [PRD](./prd-simples-online.md) (seção 9 — Wireframes) e nos [SPRINTS](./SPRINTS.md) (Sprints 1-4). A implementação do frontend (React + Monaco + xterm.js) e backend (Flask + WebSocket + Docker sandbox) está em andamento. Screenshots reais do navegador substituirão estes mockups na milestone `v1.0.0-rc1`.
+
+---
+
 ## Arquitetura
 
 ```
