@@ -21,8 +21,9 @@ def create_app() -> Flask:
 
 def _register_extensions(app: Flask) -> None:
     """Initialize Flask extensions."""
-    from app.limits import limiter
+    from app.limits import limiter, ip_limiter
     limiter.init_app(app)
+    ip_limiter.init_app(app)
 
 
 def _register_routes(app: Flask) -> None:

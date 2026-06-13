@@ -36,7 +36,9 @@ class ExecutionStrategy(ABC):
 
     @abstractmethod
     async def execute(
-        self, binary_dir: Path, ws: Any, timeout_s: int
+        self, binary_dir: Path, ws: Any, timeout_s: int,
+        stdin_queue: Optional[asyncio.Queue] = None,
+        stop_event: Optional[asyncio.Event] = None,
     ) -> ExecutionResult:
         ...
 
@@ -46,6 +48,11 @@ class PtyExecutionStrategy(ExecutionStrategy):
 
     Spawns a sandboxed Docker container and bridges its stdio
     to a WebSocket connection for interactive `leia`/`escreva` support.
+
+    stdin/stop messages are received via stdin_queue and stop_event
+    (asyncio.Queue and asyncio.Event) instead of consuming from the
+    WebSocket directly — the WebSocket is consumed exclusively by
+    the main ws_run loop to prevent dual-consumer races.
     """
 
     def __init__(self, image: Optional[str] = None):
@@ -60,7 +67,9 @@ class PtyExecutionStrategy(ExecutionStrategy):
         return self._client
 
     async def execute(
-        self, binary_dir: Path, ws: Any, timeout_s: int
+        self, binary_dir: Path, ws: Any, timeout_s: int,
+        stdin_queue: Optional[asyncio.Queue] = None,
+        stop_event: Optional[asyncio.Event] = None,
     ) -> ExecutionResult:
         """Execute the binary and bridge I/O to WebSocket."""
         container: Optional[Container] = None
@@ -110,21 +119,47 @@ class PtyExecutionStrategy(ExecutionStrategy):
                     except BlockingIOError:
                         await asyncio.sleep(0.01)
 
-            async def ws_to_pty() -> None:
-                async for message in ws:
-                    msg = json.loads(message)
-                    if msg["type"] == "stdin":
-                        sock._sock.sendall(
-                            msg["data"].encode("utf-8")
-                        )
-                    elif msg["type"] == "stop":
+            async def stdin_to_pty() -> None:
+                """Read stdin from the asyncio.Queue and forward to PTY.
+
+                Replaces the old ws_to_pty() that consumed from the WebSocket
+                directly. Now reads from stdin_queue (populated by the main
+                ws_run loop) and checks stop_event for termination signals.
+                """
+                if stdin_queue is None:
+                    # No stdin support — just wait for stop signal or pty EOF
+                    while True:
+                        if stop_event and stop_event.is_set():
+                            container.kill(signal="SIGTERM")
+                            break
+                        await asyncio.sleep(0.1)
+                    return
+
+                get_task = asyncio.create_task(stdin_queue.get())
+                stop_task = asyncio.create_task(stop_event.wait()) if stop_event else None
+
+                while True:
+                    tasks = [get_task]
+                    if stop_task:
+                        tasks.append(stop_task)
+
+                    done, _ = await asyncio.wait(
+                        tasks, return_when=asyncio.FIRST_COMPLETED
+                    )
+
+                    if stop_task and stop_task in done:
                         container.kill(signal="SIGTERM")
                         break
+
+                    if get_task in done:
+                        data = get_task.result()
+                        sock._sock.sendall(data.encode("utf-8"))
+                        get_task = asyncio.create_task(stdin_queue.get())
 
             timed_out = False
             try:
                 await asyncio.wait_for(
-                    asyncio.gather(pty_to_ws(), ws_to_pty()),
+                    asyncio.gather(pty_to_ws(), stdin_to_pty()),
                     timeout=timeout_s,
                 )
             except asyncio.TimeoutError:
@@ -185,7 +220,9 @@ class CapturedExecutionStrategy(ExecutionStrategy):
     """Non-interactive execution via subprocess (no TTY/leia support)."""
 
     async def execute(
-        self, binary_dir: Path, ws: Any, timeout_s: int
+        self, binary_dir: Path, ws: Any, timeout_s: int,
+        stdin_queue: Optional[asyncio.Queue] = None,
+        stop_event: Optional[asyncio.Event] = None,
     ) -> ExecutionResult:
         await ws.send(json.dumps({
             "type": "internal_error",

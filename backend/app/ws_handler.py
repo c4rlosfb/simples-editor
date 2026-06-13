@@ -28,6 +28,7 @@ Message types (server → client):
 import asyncio
 import json
 import logging
+import threading
 import time
 from enum import Enum
 from pathlib import Path
@@ -72,6 +73,13 @@ class ConnectionState:
         self.workdir: Path | None = None
         self.compiler: CompilerService = CompilerService()
         self._executor: PtyExecutionStrategy | None = None
+        # Fields for async stdin/stop forwarding (Bug 1 fix)
+        self._stdin_queue: asyncio.Queue | None = None
+        self._stop_event: asyncio.Event | None = None
+        self._exec_loop: asyncio.AbstractEventLoop | None = None
+        self._exec_thread: threading.Thread | None = None
+        self._exec_done: threading.Event | None = None
+        self._exec_result: ExecutionResult | None = None
 
     @property
     def executor(self) -> PtyExecutionStrategy:
@@ -95,7 +103,7 @@ def register_ws(app):
             # Authenticate on connect
             _authenticate_ws(ws, conn)
 
-            # Main message loop
+            # Main message loop — the ONLY consumer of the WebSocket
             for raw_message in ws:
                 try:
                     msg = json.loads(raw_message)
@@ -122,6 +130,9 @@ def register_ws(app):
                     }))
                 except ConnectionClosed:
                     break
+
+                # Check if background execution completed
+                _check_execution_done(ws, conn)
 
         except AuthError as e:
             _safe_send(ws, json.dumps({
@@ -167,6 +178,11 @@ def _handle_compile_and_run(ws, conn: ConnectionState, msg: dict) -> None:
     """Handle compile_and_run message — the main execution flow.
 
     State: IDLE → COMPILING → EXECUTING → IDLE
+
+    Compilation runs synchronously. Execution runs in a background
+    thread with its own asyncio event loop so the main ws_run loop
+    remains the sole WebSocket consumer. stdin/stop messages are
+    forwarded to the executor via asyncio.Queue and asyncio.Event.
     """
     if conn.state != WSState.IDLE:
         _safe_send(ws, json.dumps({
@@ -185,7 +201,7 @@ def _handle_compile_and_run(ws, conn: ConnectionState, msg: dict) -> None:
     conn.state = WSState.COMPILING
     _safe_send(ws, json.dumps({"type": "compile_started"}))
 
-    # --- Compilation phase ---
+    # --- Compilation phase (synchronous) ---
     compile_start = time.monotonic()
     result = conn.compiler.compile(code, workdir=conn.workdir)
     compile_seconds = time.monotonic() - compile_start
@@ -222,33 +238,76 @@ def _handle_compile_and_run(ws, conn: ConnectionState, msg: dict) -> None:
     _safe_send(ws, json.dumps({"type": "asm_generated", "asm": result.asm_source}))
     conn.workdir = result.binary_dir
 
-    # --- Execution phase ---
+    # --- Execution phase (background thread) ---
     conn.state = WSState.EXECUTING
     _safe_send(ws, json.dumps({"type": "exec_started"}))
     active_sandboxes.inc()
 
-    try:
-        # Run the execution in the event loop
+    conn._exec_done = threading.Event()
+
+    def _run_execution():
+        """Run execution in a background thread with its own event loop."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        exec_result: ExecutionResult = loop.run_until_complete(
-            conn.executor.execute(
-                binary_dir=result.binary_dir,
-                ws=ws,
-                timeout_s=config.exec_timeout_s,
-            )
-        )
-        loop.close()
-    except Exception as e:
-        logger.exception("execution_async_error")
-        _safe_send(ws, json.dumps({"type": "internal_error", "message": f"Execution error: {e}"}))
-        exec_result = ExecutionResult(exit_code=-1, duration_ms=0, timed_out=False)
 
+        stdin_q: asyncio.Queue = asyncio.Queue()
+        stop_ev: asyncio.Event = asyncio.Event()
+
+        conn._stdin_queue = stdin_q
+        conn._stop_event = stop_ev
+        conn._exec_loop = loop
+
+        try:
+            conn._exec_result = loop.run_until_complete(
+                conn.executor.execute(
+                    binary_dir=result.binary_dir,
+                    ws=ws,
+                    timeout_s=config.exec_timeout_s,
+                    stdin_queue=stdin_q,
+                    stop_event=stop_ev,
+                )
+            )
+        except Exception as e:
+            logger.exception("execution_async_error")
+            _safe_send(ws, json.dumps({
+                "type": "internal_error",
+                "message": f"Execution error: {e}",
+            }))
+            conn._exec_result = ExecutionResult(
+                exit_code=-1, duration_ms=0, timed_out=False
+            )
+        finally:
+            loop.close()
+            conn._stdin_queue = None
+            conn._stop_event = None
+            conn._exec_loop = None
+            conn._exec_done.set()  # signal main loop
+
+    thread = threading.Thread(target=_run_execution, daemon=True)
+    conn._exec_thread = thread
+    thread.start()
+    # _handle_compile_and_run returns immediately — main loop remains
+    # unblocked and can process stdin/stop messages.
+
+
+def _check_execution_done(ws, conn: ConnectionState) -> None:
+    """Check if background execution completed and process the result.
+
+    Called after processing each message in the main ws_run loop.
+    Handles the post-execution cleanup that was previously inside
+    _handle_compile_and_run (which blocked until execution finished).
+    """
+    if conn._exec_done is None or not conn._exec_done.is_set():
+        return
+
+    exec_result = conn._exec_result
     active_sandboxes.dec()
     conn.state = WSState.IDLE
 
     if exec_result.timed_out:
-        execution_duration.labels(outcome="timeout").observe(exec_result.duration_ms / 1000.0)
+        execution_duration.labels(outcome="timeout").observe(
+            exec_result.duration_ms / 1000.0
+        )
         executions_total.labels(outcome="timeout").inc()
         _safe_send(ws, json.dumps({
             "type": "timeout",
@@ -256,7 +315,9 @@ def _handle_compile_and_run(ws, conn: ConnectionState, msg: dict) -> None:
         }))
     else:
         outcome = "runtime_error" if exec_result.exit_code != 0 else "success"
-        execution_duration.labels(outcome=outcome).observe(exec_result.duration_ms / 1000.0)
+        execution_duration.labels(outcome=outcome).observe(
+            exec_result.duration_ms / 1000.0
+        )
         executions_total.labels(outcome=outcome).inc()
         _safe_send(ws, json.dumps({
             "type": "exit",
@@ -264,41 +325,62 @@ def _handle_compile_and_run(ws, conn: ConnectionState, msg: dict) -> None:
             "duration_ms": exec_result.duration_ms,
         }))
 
+    # Reset execution fields
+    conn._exec_done = None
+    conn._exec_result = None
+    conn._exec_thread = None
+
 
 def _handle_stdin(ws, conn: ConnectionState, msg: dict) -> None:
     """Handle stdin message from client.
 
-    Only valid in EXECUTING state. Discarded silently in other states per PRD §9.2.3.
+    Only valid in EXECUTING state. Forwards data to the background
+    execution via asyncio.Queue using loop.call_soon_threadsafe.
     """
     if conn.state != WSState.EXECUTING:
         logger.warning("stdin_in_invalid_state: state=%s", conn.state.value)
         return
 
     data = msg.get("data", "")
-    # Stdin is forwarded directly via the execution strategy's ws_to_pty,
-    # which reads from the WebSocket. If the execution is running in a
-    # different loop context, we handle it here.
-    logger.debug("stdin_received data_len=%s", len(data))
+    if not data:
+        return
+
+    # Forward to background execution thread's asyncio.Queue
+    if conn._stdin_queue is not None and conn._exec_loop is not None:
+        conn._exec_loop.call_soon_threadsafe(
+            conn._stdin_queue.put_nowait, data
+        )
+        logger.debug("stdin_forwarded data_len=%s", len(data))
+    else:
+        logger.warning("stdin_no_active_execution")
 
 
 def _handle_stop(ws, conn: ConnectionState) -> None:
     """Handle stop message from client.
 
-    Only valid in EXECUTING state. Sends SIGTERM via the executor.
+    Only valid in EXECUTING state. Sets the asyncio.Event to signal
+    the background execution thread to terminate the container.
     """
     if conn.state != WSState.EXECUTING:
         logger.warning("stop_in_invalid_state: state=%s", conn.state.value)
         return
 
     executions_stopped.inc()
-    # The execution strategy's ws_to_pty task handles the 'stop' message
-    # by calling container.kill(SIGTERM). We send the stop signal through
-    # the WebSocket (the ws_to_pty task picks it up).
     logger.info("user_stop_requested user_id=%s", conn.user_id)
+
+    # Signal the background execution thread
+    if conn._stop_event is not None and conn._exec_loop is not None:
+        conn._exec_loop.call_soon_threadsafe(conn._stop_event.set)
+    else:
+        logger.warning("stop_no_active_execution")
 
 
 def _cleanup_connection(conn: ConnectionState) -> None:
     """Clean up resources associated with a connection."""
+    # Signal any running execution to stop
+    if conn._stop_event is not None and conn._exec_loop is not None:
+        conn._exec_loop.call_soon_threadsafe(conn._stop_event.set)
+
     if conn.workdir and conn.workdir.exists():
         conn.compiler.cleanup(conn.workdir)
 
