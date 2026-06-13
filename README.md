@@ -496,9 +496,9 @@ O Simples Editor foi projetado com **defense in depth** — 9 camadas de isolame
 
 | Integrante | GitHub | Papel |
 |---|---|---|
-| **Carlos Barbosa** | [@c4rlosfb](https://github.com/c4rlosfb) | Arquiteto, Backend, DevOps, Segurança |
-| **Luan Cas Dias** | [@LuanCasDias](https://github.com/LuanCasDias) | Frontend, UI/UX, Monaco Editor |
-| **Kauã** | [@KauaN-png](https://github.com/KauaN-png) | Infraestrutura, Docker, Oracle Cloud |
+| **Carlos Barboa** | [@c4rlosfb](https://github.com/c4rlosfb) | Arquiteto, Backend, DevOps, Segurança |
+| **Luan Dias** | [@LuanCasDias](https://github.com/LuanCasDias) | Frontend, UI/UX, Monaco Editor |
+| **Kauan Simão** | [@KauaN-png](https://github.com/KauaN-png) | Infraestrutura, Docker, Oracle Cloud |
 
 </div>
 
