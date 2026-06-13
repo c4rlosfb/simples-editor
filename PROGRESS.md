@@ -34,7 +34,7 @@
 
 ## Sprint 4
 
-- [ ] feat(backend): add websocket run endpoint
+- [x] feat(backend): add websocket run endpoint
 - [ ] feat(frontend): integrate xtermjs terminal panel
 - [ ] feat(devops): build simples-runner image with qemu-user-static
 - [ ] feat(backend): implement pty execution strategy
