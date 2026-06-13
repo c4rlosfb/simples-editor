@@ -46,7 +46,7 @@
 
 - [ ] feat(frontend): wire stop button to backend stop signal
 - [ ] feat(backend): enforce wall clock execution timeout
-- [ ] feat(devops): set docker hard stop timeout
+- [x] feat(devops): set docker hard stop timeout
 - [ ] feat(security): apply sandbox isolation flags
 - [ ] feat(backend): add per user execution rate limit
 - [ ] feat(devops): emit structured json logs
