@@ -84,22 +84,22 @@ Crie **1 subagente por bug** para corrigir seus PRs.
 
 ---
 
-## 5. Fase 3 — MERGE (sequencial)
+## 5. Após revisão e correção
 
-Após revisões aprovadas, mergear em ordem:
+⚠️ **NÃO FAÇA MERGE.** Apenas o owner (@c4rlosfb) mergeia.
 
-```
-#62 → #65 → #71 → #72 → #59 → #67 → #68 → #69 → #70 → #73 → #75 → #76 → #77 → #79 → #81
-```
+Quando TODOS os seus PRs estiverem revisados e bugs corrigidos, avise no grupo. O owner fará os merges em sequência, verificando testes a cada passo.
 
-Comando: `gh pr merge <NUMERO> --squash --repo c4rlosfb/simples-editor`
-
-⚠️ **Regra:** Só mergear se TODOS os testes passarem e o review estiver aprovado.
+### O que reportar ao owner:
+- [ ] Todos os PRs designados a mim foram revisados (aprove/change)
+- [ ] Bugs nos meus PRs foram corrigidos e pushados
+- [ ] `python -m pytest tests/ -v` passa nos meus branches
 
 ---
 
 ## 6. Anti-padrões (NÃO FAZER)
 
+- ❌ Fazer merge — apenas o owner mergeia
 - ❌ Aprovar PR próprio
 - ❌ Merge sem teste passar
 - ❌ Fechar issue antes de TODOS os critérios de aceite cumpridos
@@ -110,8 +110,11 @@ Comando: `gh pr merge <NUMERO> --squash --repo c4rlosfb/simples-editor`
 
 ## 7. Critérios de Sucesso
 
-- [ ] Todos os PRs designados a você foram revisados
-- [ ] Bugs nos seus PRs foram corrigidos
-- [ ] PRs aprovados foram mergeados em ordem
-- [ ] Kanban atualizado (Done = merged, In Review = PR aberto)
+- [ ] Todos os PRs designados a você foram revisados (approve ou request-changes)
+- [ ] Bugs nos seus PRs foram corrigidos e pushados
+- [ ] Avisou o owner (@c4rlosfb) que finalizou
+- [ ] ⬇️ **DAQUI PRA BAIXO É COM O OWNER** ⬇️
+ 
+- [ ] Owner mergeia PRs aprovados em ordem
+- [ ] Owner atualiza Kanban (Done = merged)
 - [ ] `python -m pytest tests/ -v` passa em `dev` após cada merge
