@@ -39,7 +39,7 @@
 - [ ] feat(devops): build simples-runner image with qemu-user-static
 - [ ] feat(backend): implement pty execution strategy
 - [ ] feat(backend): bridge websocket and pty streams
-- [ ] feat(backend): support interactive leia end to end
+- [x] feat(backend): support interactive leia end to end
 - [ ] feat(backend): implement websocket protocol events
 
 ## Sprint 5
