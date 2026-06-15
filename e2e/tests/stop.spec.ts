@@ -48,15 +48,14 @@ test.describe('Stop Flow', () => {
     await page.keyboard.press('Control+a');
     await page.waitForTimeout(500);
 
-    const infiniteLoop = `programa loop;
-declare
-    x: inteiro;
+    const infiniteLoop = `programa loop
+  inteiro x
 inicio
-    x := 1;
-    enquanto x = 1 faca
-        escreva("loop");
-    fimenquanto
-fimprog.`;
+  x <- 1
+  enquanto x = 1 faca
+    escreva "loop"
+  fimenquanto
+fim`;
 
     await page.keyboard.type(infiniteLoop, { delay: 10 });
 

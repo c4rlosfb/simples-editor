@@ -36,9 +36,8 @@ test.describe('Edit Flow', () => {
     // Default code should contain SIMPLES keywords
     const editorContent = page.locator('.view-lines');
     await expect(editorContent).toContainText('programa', { timeout: 5000 });
-    await expect(editorContent).toContainText('declare', { timeout: 5000 });
     await expect(editorContent).toContainText('inicio', { timeout: 5000 });
-    await expect(editorContent).toContainText('fimprog', { timeout: 5000 });
+    await expect(editorContent).toContainText('fim', { timeout: 5000 });
   });
 
   test('should allow editing code in the editor', async ({ page }) => {
@@ -56,7 +55,7 @@ test.describe('Edit Flow', () => {
     await page.waitForTimeout(500);
 
     // Type new code
-    const newCode = 'programa teste;\ndeclare\n    x: inteiro;\ninicio\n    x := 10;\n    escreva(x);\nfimprog.';
+    const newCode = 'programa teste\n  inteiro x\ninicio\n  x <- 10\n  escreva x\nfim';
     await page.keyboard.type(newCode, { delay: 20 });
 
     // Verify the new code is in the editor

@@ -5,16 +5,14 @@ import NasmPanel from './components/NasmPanel';
 import TerminalPanel from './components/TerminalPanel';
 import RunButton from './components/RunButton';
 
-const DEFAULT_CODE = `programa exemplo;
-declare
-    x: inteiro;
-    y: inteiro;
+const DEFAULT_CODE = `programa exemplo
+  inteiro x, y
 inicio
-    escreva("Digite um numero: ");
-    leia(x);
-    y := x * 2;
-    escreva("Dobro: ", y);
-fimprog.`;
+  escreva "Digite um numero: "
+  leia x
+  y <- x * 2
+  escreva "Dobro: ", y
+fim`;
 
 interface CompileResult {
   success: boolean;

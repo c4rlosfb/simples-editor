@@ -34,14 +34,13 @@ test.describe('stdin Flow (Interactive Input)', () => {
     await page.keyboard.press('Control+a');
     await page.waitForTimeout(500);
 
-    const leiaProgram = `programa entrada;
-declare
-    nome: caracter;
+    const leiaProgram = `programa entrada
+  caracter nome
 inicio
-    escreva("Digite seu nome: ");
-    leia(nome);
-    escreva("Ola, ", nome);
-fimprog.`;
+  escreva "Digite seu nome: "
+  leia nome
+  escreva "Ola, ", nome
+fim`;
 
     await page.keyboard.type(leiaProgram, { delay: 10 });
 
