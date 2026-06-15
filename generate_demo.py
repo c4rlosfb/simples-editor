@@ -152,10 +152,8 @@ def draw_code_block(draw, x, y, code_lines, width=800, line_height=36):
         
         # Code with basic highlighting
         rest_x = x + 50
-        if line.startswith("programa") or line.startswith("fimprog"):
+        if line.startswith("programa") or line.startswith("fim."):
             draw.text((rest_x, text_y), line, font=font, fill=ACCENT)
-        elif "declare" in line:
-            draw.text((rest_x, text_y), line, font=font, fill=ACCENT2)
         elif "leia" in line:
             draw.text((rest_x, text_y), line, font=font, fill=GREEN)
         elif "escreva" in line:
@@ -279,15 +277,14 @@ def make_frame(scene_num, duration_sec, total_frames_start):
         draw_panel(draw, 30, 100, 680, 500, "Editor SIMPLES (Monaco)")
         code_lines = [
             "programa exemplo;",
-            "declare",
             "    x: inteiro;",
             "    y: inteiro;",
             "inicio",
             '    escreva("Digite um numero: ");',
             "    leia(x);",
-            "    y := x * 2;",
+            "    y <- x * 2;",
             '    escreva("Dobro: ", y);',
-            "fimprog.",
+            "fim.",
         ]
         draw_code_block(draw, 40, 135, code_lines, width=660, line_height=34)
         
@@ -334,9 +331,9 @@ def make_frame(scene_num, duration_sec, total_frames_start):
         draw_text_centered(draw, "Linguagem SIMPLES", 60, "sans-bold", 44, WHITE)
         
         features = [
-            ("27 palavras reservadas", "programa, declare, inicio, fimprog,\ninteiro, real, caracter, leia, escreva,\nse, entao, senao, fimse, enquanto,\nfimenquanto, repita, ate, para, faca,\ne, ou, nao, verdadeiro, falso, inicio_partes,\ndeclare_partes, registros"),
-            ("Tipos de Dados", "inteiro, real, caracter\nSuporta vetores e registros"),
-            ("Controle de Fluxo", "se...entao...senao\nenquanto...faca\nrepita...ate\npara...faca"),
+            ("23 palavras reservadas", "programa, inicio, fim,\ninteiro, flutuante, vazio, leia, escreva,\nse, entao, senao, fimse, enquanto,\nfimenquanto, ate, para, faca,\ne, ou, nao, verdadeiro, falso, inicio_partes,\ndeclare_partes, registros"),
+            ("Tipos de Dados", "inteiro, flutuante, vazio\nSuporta vetores e registros"),
+            ("Controle de Fluxo", "se...entao...senao\nenquanto...faca\nate\npara...faca"),
             ("E/S", 'leia(variavel)\nescreva("texto", valor)'),
         ]
         
@@ -405,16 +402,15 @@ def make_frame(scene_num, duration_sec, total_frames_start):
         draw_panel(draw, 50, 120, 600, 500, "Código SIMPLES")
         code = [
             "programa soma;",
-            "declare",
             "    a, b, soma: inteiro;",
             "inicio",
             '    escreva("Valor de a: ");',
             "    leia(a);",
             '    escreva("Valor de b: ");',
             "    leia(b);",
-            "    soma := a + b;",
+            "    soma <- a + b;",
             '    escreva("Soma: ", soma);',
-            "fimprog.",
+            "fim.",
         ]
         draw_code_block(draw, 60, 155, code, width=580, line_height=34)
         
