@@ -1,13 +1,43 @@
+import { useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
-import { useRef } from 'react'
+import type { editor } from 'monaco-editor'
+import type { CompileError } from '../compile-errors'
+import { compileErrorsToMarkers } from '../compile-errors'
+
+interface EditorPanelProps {
+  /** Erros de compilação a serem exibidos como markers no editor */
+  errors?: CompileError[]
+}
 
 const defaultCode = `programa Exemplo
 inicio
   escreva "Ola, mundo!"
 fim`
 
-export default function EditorPanel() {
-  const editorRef = useRef<Parameters<typeof Editor>[0] | null>(null)
+export default function EditorPanel({ errors = [] }: EditorPanelProps) {
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const monacoRef = useRef<typeof import('monaco-editor') | null>(null)
+
+  const handleEditorDidMount = (
+    editor: editor.IStandaloneCodeEditor,
+    monaco: typeof import('monaco-editor')
+  ) => {
+    editorRef.current = editor
+    monacoRef.current = monaco
+  }
+
+  // Atualiza markers sempre que a lista de erros mudar
+  useEffect(() => {
+    const ed = editorRef.current
+    const monaco = monacoRef.current
+    if (!ed || !monaco) return
+
+    const model = ed.getModel()
+    if (!model) return
+
+    const markers = compileErrorsToMarkers(errors)
+    monaco.editor.setModelMarkers(model, 'compile-errors', markers)
+  }, [errors])
 
   return (
     <div className="h-full flex flex-col bg-[#1e1e1e]">
@@ -20,6 +50,7 @@ export default function EditorPanel() {
           defaultLanguage="simples"
           defaultValue={defaultCode}
           theme="simples-dark"
+          onMount={handleEditorDidMount}
           options={{
             fontSize: 14,
             fontFamily: "'JetBrains Mono', 'Fira Code', monospace",

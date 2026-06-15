@@ -4,6 +4,7 @@ import EditorPanel from './components/EditorPanel'
 import FileBrowser from './components/FileBrowser'
 import OutputPanel from './components/OutputPanel'
 import Toolbar from './components/Toolbar'
+import type { CompileError } from './compile-errors'
 import './setup-monaco'
 
 const MOCK_NASM = `; NASM x86 assembly — output do compilador SIMPLES
@@ -35,8 +36,24 @@ _start:
     xor rdi, rdi
     syscall`
 
+const MOCK_ERRORS: CompileError[] = [
+  {
+    line: 3,
+    column: 5,
+    message: 'Token inesperado: "escreva". Esperado "fim".',
+    phase: 'sintatico',
+  },
+  {
+    line: 1,
+    column: 10,
+    message: 'Identificador "Exemplo" nao declarado.',
+    phase: 'semantico',
+  },
+]
+
 export default function App() {
   const [nasmCode, setNasmCode] = useState(MOCK_NASM)
+  const [compileErrors, setCompileErrors] = useState<CompileError[]>(MOCK_ERRORS)
 
   return (
     <div className="h-screen flex flex-col bg-[#1e1e1e]">
@@ -48,7 +65,7 @@ export default function App() {
           </Panel>
           <PanelResizeHandle className="w-1 bg-[#333] hover:bg-[#007acc] transition-colors cursor-col-resize" />
           <Panel defaultSize={55} minSize={30}>
-            <EditorPanel />
+            <EditorPanel errors={compileErrors} />
           </Panel>
           <PanelResizeHandle className="w-1 bg-[#333] hover:bg-[#007acc] transition-colors cursor-col-resize" />
           <Panel defaultSize={25} minSize={10} maxSize={40}>
