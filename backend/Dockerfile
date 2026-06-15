@@ -1,30 +1,16 @@
 # ============================================================
-# Stage 1: Build simplesc from source
-# ============================================================
-FROM ubuntu:22.04 AS simplesc-builder
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    git \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /simplesc
-RUN git clone https://github.com/c4rlosfb/simples-compiler.git . \
-    && make build/simplesc \
-    && cp build/simplesc /usr/local/bin/simplesc
-
-# ============================================================
-# Stage 2: Backend runtime
+# Backend runtime — uses a pre-compiled simplesc binary
 # ============================================================
 FROM python:3.12-slim
 
+# Install binutils for i686 linking (nasm + ld)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils-i686-linux-gnu \
     nasm \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=simplesc-builder /usr/local/bin/simplesc /usr/local/bin/simplesc
+# Copy pre-compiled simplesc binary
+COPY simplesc /usr/local/bin/simplesc
 
 WORKDIR /app
 COPY requirements.txt .
