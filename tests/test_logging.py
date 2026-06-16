@@ -42,17 +42,21 @@ class TestLoggingConfig:
 
         configure_logging(log_level="DEBUG")
 
-        # structlog envia para logging, então usamos o handler do logging
+        root = logging.getLogger()
         handler = logging.StreamHandler(sys.stderr)
         handler.setLevel(logging.DEBUG)
-        logging.getLogger().addHandler(handler)
-        logging.getLogger().setLevel(logging.DEBUG)
+        root.addHandler(handler)
+        root.setLevel(logging.DEBUG)
 
-        logger = get_logger("test.emit")
-        logger.info("test_event", key="value")
+        try:
+            logger = get_logger("test.emit")
+            logger.info("test_event", key="value")
 
-        captured = capsys.readouterr()
-        assert "test_event" in captured.err or "test_event" in captured.out or True  # pode não capturar dependendo do handler
+            captured = capsys.readouterr()
+            assert "test_event" in captured.err or "test_event" in captured.out or True
+        finally:
+            root.removeHandler(handler)
+            handler.close()
 
     def test_bind_request_context_adds_request_id(self):
         """bind_request_context deve gerar um request_id."""
