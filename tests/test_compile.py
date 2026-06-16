@@ -2,8 +2,12 @@
 Testes para o endpoint POST /api/compile e o compiler.py.
 """
 
+import os
 import sys
 from pathlib import Path
+
+# Garante modo mock para testes locais sem simplesc
+os.environ.setdefault("SIMPLESC_MOCK", "true")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 

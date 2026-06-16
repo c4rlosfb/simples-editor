@@ -8,6 +8,7 @@ parseia erros de compilação em formato estruturado.
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
 import tempfile
@@ -54,11 +55,26 @@ def compile_simples(code: str) -> CompileResult:
     3. Se sucesso: lê o .asm gerado e retorna
     4. Se erro: parseia stderr em erros estruturados
     5. Timeout de COMPILE_TIMEOUT_S segundos
+
+    Em desenvolvimento (SIMPLESC_MOCK=true): usa mock quando simplesc não está disponível.
+    Em produção (SIMPLESC_MOCK=false, padrão): falha com erro se simplesc não estiver instalado.
     """
     simplesc = shutil.which("simplesc")
     if not simplesc:
-        logger.warning("simplesc não encontrado no PATH — usando mock")
-        return _mock_compile(code)
+        if os.environ.get("SIMPLESC_MOCK", "false").lower() == "true":
+            logger.warning("simplesc não encontrado no PATH — usando mock")
+            return _mock_compile(code)
+        else:
+            logger.critical("simplesc não encontrado no PATH — ambiente de produção")
+            return CompileResult(
+                success=False,
+                errors=[{
+                    "line": 0,
+                    "column": 0,
+                    "message": "Compilador simplesc não disponível",
+                    "phase": "compiler",
+                }],
+            )
 
     with tempfile.TemporaryDirectory(prefix="simples-") as tmp:
         src = Path(tmp) / "programa.simples"
