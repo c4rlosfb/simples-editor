@@ -8,10 +8,14 @@ export const loginRoute = createRoute({
   path: "/login",
   component: LoginRoute,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    // Se já estiver logado, redireciona para a IDE
-    if (data.session) {
-      throw redirect({ to: "/" });
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        throw redirect({ to: "/" });
+      }
+    } catch (error) {
+      if (error instanceof Response || (error as any)?.redirect) throw error;
+      // Se o Supabase está offline, permite continuar para mostrar a UI de login
     }
   },
 });

@@ -2,6 +2,8 @@ import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "src/lib/supabase";
 
+const siteUrl = import.meta.env.VITE_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+
 export function LoginPage() {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 shadow-2xl">
@@ -49,7 +51,7 @@ export function LoginPage() {
           },
         }}
         providers={[]}
-        redirectTo={typeof window !== "undefined" ? window.location.origin + "/" : "/"}
+        redirectTo={`${siteUrl}/`}
         onlyThirdPartyProviders={false}
         magicLink={false}
         showLinks={true}

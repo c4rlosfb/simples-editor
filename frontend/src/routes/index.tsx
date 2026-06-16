@@ -7,15 +7,25 @@ export const indexRoute = createRoute({
   path: "/",
   component: IndexRoute,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    // Se não estiver logado, redireciona para o login
-    if (!data.session) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        throw redirect({ to: "/login" });
+      }
+    } catch (error) {
+      if (error instanceof Response || (error as any)?.redirect) throw error;
+      // Fallback: redireciona para erro se Supabase estiver offline
       throw redirect({ to: "/login" });
     }
   },
 });
 
 function IndexRoute() {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    throw redirect({ to: "/login" });
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -24,10 +34,7 @@ function IndexRoute() {
           <h1 className="text-lg font-semibold text-cyan-400">Simples Editor</h1>
         </div>
         <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.href = "/login";
-          }}
+          onClick={handleLogout}
           className="text-sm text-gray-400 hover:text-white transition-colors"
         >
           Sair
