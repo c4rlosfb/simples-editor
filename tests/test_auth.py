@@ -15,7 +15,6 @@ from flask import Flask, g
 
 from auth import verify_jwt, verify_token, _jwks_cache
 
-
 # --- Helpers ---
 
 SECRET = "test-secret-key-min-32-chars-long!!"
@@ -51,7 +50,8 @@ class TestVerifyToken:
     """Testes para a função verify_token()."""
 
     def setup_method(self):
-        # Limpa cache JWKS entre testes
+        """Limpa cache JWKS entre testes para evitar contaminação cruzada."""
+        global _jwks_cache
         _jwks_cache = None
 
     def test_valid_token_returns_payload(self):
@@ -76,7 +76,7 @@ class TestVerifyToken:
 
     def test_invalid_token_returns_none(self):
         """Token com assinatura inválida deve retornar None."""
-        bad_token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.invalidsignature"
+        bad_token = "eyJhbG...ture"
         assert verify_token(bad_token) is None
 
     def test_empty_token_returns_none(self):
@@ -134,6 +134,11 @@ class TestVerifyJwtDecorator:
         @app.route("/api/public")
         def public():
             return {"status": "ok"}
+
+        @app.route("/api/check-payload")
+        @verify_jwt
+        def check_payload():
+            return {"has_payload": hasattr(g, "token_payload")}
 
         return app
 
@@ -193,13 +198,6 @@ class TestVerifyJwtDecorator:
 
     def test_token_payload_in_g(self, client):
         """O payload completo deve estar disponível em g.token_payload."""
-        app = client.application
-
-        @app.route("/api/check-payload")
-        @verify_jwt
-        def check_payload():
-            return {"has_payload": hasattr(g, "token_payload")}
-
         token = _make_token()
         resp = client.get(
             "/api/check-payload",
