@@ -59,7 +59,7 @@ export const SIMPLES_OPERATORS = [
   "+",
   "-",
   "*",
-  "div",  // divisão inteira
+  "/",    // divisão (operador aritmético; "div" é keyword, não operador simbólico)
   ">",
   "<",
   "=",

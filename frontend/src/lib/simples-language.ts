@@ -48,24 +48,24 @@ function createSimplesDarkTheme(): editor.IStandaloneThemeData {
     inherit: true,
     rules: [
       // Keywords SIMPLES
-      { token: "keyword", foreground: "22d3ee", fontStyle: "bold" },       // ciano
+      { token: "keyword", foreground: "#22d3ee", fontStyle: "bold" },       // ciano
       // Operadores
-      { token: "operator", foreground: "c084fc" },                          // roxo
+      { token: "operator", foreground: "#c084fc" },                          // roxo
       // Números
-      { token: "number", foreground: "fb923c" },                            // laranja
-      { token: "number.float", foreground: "fb923c" },                      // laranja
+      { token: "number", foreground: "#fb923c" },                            // laranja
+      { token: "number.float", foreground: "#fb923c" },                      // laranja
       // Strings
-      { token: "string", foreground: "4ade80" },                            // verde
+      { token: "string", foreground: "#4ade80" },                            // verde
       // Comentários
-      { token: "comment", foreground: "6b7280", fontStyle: "italic" },      // cinza
+      { token: "comment", foreground: "#6b7280", fontStyle: "italic" },      // cinza
       // Identificadores
-      { token: "identifier", foreground: "e5e7eb" },                        // cinza claro
+      { token: "identifier", foreground: "#e5e7eb" },                        // cinza claro
       // Delimitadores
-      { token: "delimiter", foreground: "9ca3af" },                         // cinza médio
+      { token: "delimiter", foreground: "#9ca3af" },                         // cinza médio
       // Type annotations (futuro)
-      { token: "type", foreground: "67e8f9" },                              // ciano claro
+      { token: "type", foreground: "#67e8f9" },                              // ciano claro
       // Funções (procedimentos)
-      { token: "function", foreground: "fde047" },                          // amarelo
+      { token: "function", foreground: "#fde047" },                          // amarelo
     ],
     colors: {
       "editor.background": "#0a0a0a",
