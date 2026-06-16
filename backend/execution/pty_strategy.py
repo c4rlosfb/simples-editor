@@ -48,6 +48,7 @@ class PtyExecutionStrategy:
         try:
             # 1. Create sandbox
             container = self.sandbox_factory.create_sandbox(binary_dir, binary_name)
+            self._container = container
 
             # 2. Attach socket for bidirectional I/O
             sock = container.attach_socket(
@@ -133,11 +134,11 @@ class PtyExecutionStrategy:
             except Exception as e:
                 logger.warning(f"Failed to write stdin: {e}")
 
-    def stop(self, container):
+    def stop(self):
         """Stop an execution mid-flight (SIGTERM -> SIGKILL)."""
-        if container:
+        if hasattr(self, '_container') and self._container:
             try:
-                container.kill(signal.SIGTERM)
+                self._container.kill(signal.SIGTERM)
             except Exception:
                 pass
 
