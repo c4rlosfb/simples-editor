@@ -72,11 +72,13 @@ def get_docker_kill_sequence() -> list[tuple[str, int]]:
 def validate_timeouts() -> bool:
     """
     Valida que os timeouts estão na ordem correta:
-    compile > exec > docker stop? Não necessariamente.
-    Mas exec + grace deve ser < docker stop para evitar que o Docker
-    faça hard kill antes da aplicação tentar graceful shutdown.
+    exec_timeout_s + sigterm_grace_s < docker_stop_timeout_s.
+
+    O Docker hard stop (--stop-timeout) deve ser maior que o soft timeout
+    + grace period para evitar que o Docker faça SIGKILL antes da aplicação
+    tentar graceful shutdown com SIGTERM.
     """
-    if timeout_config.exec_timeout_s >= timeout_config.docker_stop_timeout_s:
-        # Docker hard stop deve ser >= exec timeout para ser útil
-        return True  # Ainda é válido, mas warning
+    total_soft = timeout_config.exec_timeout_s + timeout_config.sigterm_grace_s
+    if total_soft >= timeout_config.docker_stop_timeout_s:
+        return False
     return True
