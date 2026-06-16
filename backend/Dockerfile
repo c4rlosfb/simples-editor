@@ -1,16 +1,19 @@
 # ============================================================
-# Backend runtime — uses a pre-compiled simplesc binary
+# Backend runtime — compiles simplesc from source tarball
 # ============================================================
 FROM python:3.12-slim
 
-# Install binutils for i686 linking (nasm + ld)
+# Install build tools and runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
     binutils-i686-linux-gnu \
     nasm \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy pre-compiled simplesc binary
-COPY simplesc /usr/local/bin/simplesc
+# Download and compile simplesc from stable tarball (no git clone)
+ADD https://github.com/c4rlosfb/simples-compiler/archive/main.tar.gz /simplesc/
+RUN cd /simplesc/* && make build/simplesc && cp build/simplesc /usr/local/bin/simplesc
 
 WORKDIR /app
 COPY requirements.txt .
