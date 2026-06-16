@@ -26,8 +26,34 @@ Para CADA issue da sua lista, siga exatamente:
 5. Rodar testes: python -m pytest tests/ -v --tb=short
 6. git add -A && git commit -m "feat(scope): descricao (closes #<NUMERO>)"
 7. git push -u origin fix/issue-<NUMERO>
-8. gh pr create --repo c4rlosfb/simples-editor --title "<titulo>" --body "Resolve #<NUMERO>."
-9. gh project item-edit (mover para In Review)
+8. Criar PR preenchendo OBRIGATORIAMENTE o template do repositório:
+
+```bash
+gh pr create --repo c4rlosfb/simples-editor \
+  --title "<Título Original da Issue>" \
+  --body "## O que muda?
+<1-2 frases resumindo as alterações>
+
+## Por quê?
+Closes #<NUMERO>
+
+## Como testar?
+<Passos para o reviewer reproduzir: comandos, endpoints, testes>
+
+## Checklist
+- [x] Testes passando localmente
+- [ ] Atualizei o README se necessário
+- [ ] Não introduzi breaking changes
+- [x] CI verde"
+```
+
+9. Mover issue no Kanban para In Review:
+```bash
+gh project item-edit --id <ITEM_ID> --project-id PVT_kwHOBkrezc4BXzE0 \
+  --field-id PVTSSF_lAHOBkrezc4BXzE0zhS9eyQ --single-select-option-id df73e18b
+```
+(Para descobrir o ITEM_ID: `gh project item-list 3 --owner c4rlosfb --limit 50 --format json | grep <NUMERO>`)
+10. Associar reviewer aleatório: `gh pr edit <PR_NUM> --add-reviewer <@LuanCasDias ou @KauaN-png>`
 ```
 
 ---

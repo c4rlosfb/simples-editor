@@ -30,7 +30,37 @@ Crie **1 subagente por PR** para revisar. Cada subagente deve:
 3. Avaliar: bugs, clareza, DRY/SOLID, performance, cobertura de testes
 4. Rodar testes se existirem: `python -m pytest tests/ -v --tb=short`
 5. Submeter review: `gh pr review <NUMERO> --approve` ou `--request-changes --body "..."`
-6. Reportar veredito
+
+### Modelo de review (OBRIGATÓRIO seguir este formato)
+
+```markdown
+## Revisão — PR #<NUMERO>
+
+### ✅ Acertos
+- [Liste o que está CORRETO e por quê. Seja específico: nome do arquivo, linha, motivo.]
+- Ex: "Dockerfile multi-stage bem estruturado (builder stage compila, runtime stage mínimo)"
+
+### 🚨 Erros / Bugs
+- [Liste bugs CRÍTICOS que impedem o merge. Arquivo, linha, problema, impacto.]
+- Ex: "Porta 8000 em backend/Dockerfile:5 — PRD §14.2 especifica porta 5000"
+
+### ⚠️ Warnings
+- [Liste problemas NÃO-bloqueantes. Más práticas, código duplicado, DRY.]
+- Ex: "HealthBadge e HealthCheck duplicados em App.tsx — extrair para hook"
+
+### 💡 Implementações / Sugestões
+- [Sugestões de melhoria de código, performance, legibilidade.]
+
+### 📊 Resultado dos testes
+- [N testes passando, N falhando, cobertura se disponível]
+
+### 🏷️ Veredito
+- ✅ APPROVED (se zero bugs críticos)
+- ❌ REQUEST CHANGES (se houver bugs críticos)
+```
+
+6. Após submeter review: mover issue no Kanban — se APPROVED mantém In Review, se REQUEST CHANGES move para In Progress (`47fc9ee4`)
+7. Reportar veredito
 
 ### PRs para revisar (substitua pelo seu nome)
 
