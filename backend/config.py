@@ -7,9 +7,26 @@ para desenvolvimento local.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+def _parse_int_env(name: str, default: int) -> int:
+    """Parse an integer environment variable with fallback on error."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid value for %s=%r — using default %d", name, raw, default
+        )
+        return default
 
 
 @dataclass(frozen=True)
@@ -26,10 +43,18 @@ class Config:
     )
 
     # --- Limits ---
-    exec_timeout_s: int = int(os.getenv("EXEC_TIMEOUT_S", "10"))
-    compile_timeout_s: int = int(os.getenv("COMPILE_TIMEOUT_S", "15"))
-    max_code_kb: int = int(os.getenv("MAX_CODE_KB", "64"))
-    runs_per_minute: int = int(os.getenv("RUNS_PER_MINUTE", "30"))
+    exec_timeout_s: int = field(
+        default_factory=lambda: _parse_int_env("EXEC_TIMEOUT_S", 10)
+    )
+    compile_timeout_s: int = field(
+        default_factory=lambda: _parse_int_env("COMPILE_TIMEOUT_S", 15)
+    )
+    max_code_kb: int = field(
+        default_factory=lambda: _parse_int_env("MAX_CODE_KB", 64)
+    )
+    runs_per_minute: int = field(
+        default_factory=lambda: _parse_int_env("RUNS_PER_MINUTE", 30)
+    )
 
     # --- Sandbox ---
     sandbox_image: str = os.getenv("SANDBOX_IMAGE", "simples-runner:latest")

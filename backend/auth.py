@@ -20,34 +20,32 @@ from config import config
 logger = logging.getLogger(__name__)
 
 # Cache do JWKS do Supabase — evita fetch em toda request
-_jwks_cache: dict[str, Any] | None = None
-_jwks_kid: str | None = None
+_jwks_cache: list[dict[str, Any]] | None = None
 
 
-def _get_jwks() -> dict[str, Any]:
-    """Obtém as chaves públicas do Supabase para validar o JWT."""
-    global _jwks_cache, _jwks_kid
+def _get_jwks() -> list[dict[str, Any]]:
+    """Obtém as chaves públicas do Supabase para validar o JWT.
+
+    Armazena todas as chaves (não apenas a primeira) para suportar
+    rotação de chaves: o verify_token seleciona a chave correta via kid.
+    """
+    global _jwks_cache
 
     if _jwks_cache is not None:
         return _jwks_cache
 
     import urllib.request
 
-    # Suapbase JWKS URL baseada na project URL
+    # Supabase JWKS URL baseada na project URL
     jwks_url = f"{config.supabase_url}/.well-known/jwks.json"
     try:
         with urllib.request.urlopen(jwks_url, timeout=5) as resp:
             jwks: dict = json.loads(resp.read().decode())
     except Exception as exc:
         logger.warning("Falha ao buscar JWKS do Supabase: %s", exc)
-        return {}
+        return []
 
-    # Extrai o primeiro kid (key ID) do cabeçalho
-    keys = jwks.get("keys", [])
-    if keys:
-        _jwks_kid = keys[0].get("kid")
-    _jwks_cache = keys[0] if keys else {}
-
+    _jwks_cache = jwks.get("keys", [])
     return _jwks_cache
 
 
@@ -56,6 +54,7 @@ def verify_token(token: str) -> dict[str, Any] | None:
     Valida um JWT do Supabase.
 
     Retorna o payload decodificado se válido, None caso contrário.
+    Suporta rotação de chaves: seleciona a chave JWK pelo ``kid`` do header JWT.
     """
     if not token:
         return None
@@ -66,17 +65,42 @@ def verify_token(token: str) -> dict[str, Any] | None:
 
     try:
         # Tenta validar com o JWKS primeiro
-        jwk_data = _get_jwks()
-        if jwk_data:
-            public_key = pyjwt.algorithms.RSAAlgorithm.from_jwk(
-                json.dumps(jwk_data)
-            )
-            payload = pyjwt.decode(
-                token,
-                public_key,
-                algorithms=["RS256"],
-                options={"verify_aud": False},
-            )
+        jwks_keys = _get_jwks()
+        if jwks_keys:
+            # Extrai o kid do header JWT (sem validar) para selecionar a chave correta
+            try:
+                header = pyjwt.get_unverified_header(token)
+                target_kid = header.get("kid")
+            except Exception:
+                target_kid = None
+
+            # Seleciona a chave com o kid correspondente, ou a primeira se não houver kid
+            jwk_data = None
+            for key in jwks_keys:
+                if target_kid is None or key.get("kid") == target_kid:
+                    jwk_data = key
+                    break
+            if jwk_data is None and jwks_keys:
+                jwk_data = jwks_keys[0]  # fallback para primeira chave
+
+            if jwk_data:
+                public_key = pyjwt.algorithms.RSAAlgorithm.from_jwk(
+                    json.dumps(jwk_data)
+                )
+                payload = pyjwt.decode(
+                    token,
+                    public_key,
+                    algorithms=["RS256"],
+                    options={"verify_aud": False},
+                )
+            else:
+                # Fallback: validação HMAC com o JWT secret
+                payload = pyjwt.decode(
+                    token,
+                    config.supabase_jwt_secret,
+                    algorithms=["HS256"],
+                    options={"verify_aud": False},
+                )
         else:
             # Fallback: validação HMAC com o JWT secret
             payload = pyjwt.decode(
