@@ -48,7 +48,7 @@ class SandboxConfig:
     def isolation_layers(self) -> list[str]:
         """Lista descritiva das 9 camadas de isolamento ativas."""
         return [
-            f"1. Container descartável (--rm)",
+            f"1. Container criado sob demanda, destruído após execução",
             f"2. Network isolation (--network={self.network_mode})",
             f"3. Filesystem read-only + tmpfs:/tmp,size={self.tmpfs_size}",
             f"4. Memory limit (--memory={self.memory} --memory-swap={self.memory})",
