@@ -1,8 +1,0 @@
-.env
-__pycache__/
-.pytest_cache/
-*.pyc
-.terraform/
-node_modules/
-dist/
-.vite/
