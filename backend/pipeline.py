@@ -16,6 +16,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+from error_parser import _parse_errors
+
 # Timeouts por estágio (segundos) — PRD §11.3
 SIMPLESC_TIMEOUT = 15
 NASM_TIMEOUT = 15
@@ -151,7 +153,7 @@ def run_pipeline(code: str) -> PipelineResult:
         stages.append(stage)
 
         if not stage.success:
-            errors = _parse_pipeline_error(stage.error)
+            errors = _parse_errors(stage.error)
             return PipelineResult(success=False, stages=stages, errors=errors)
 
         asm = asm_file.read_text(encoding="utf-8") if asm_file.exists() else ""
@@ -166,7 +168,7 @@ def run_pipeline(code: str) -> PipelineResult:
         stages.append(stage)
 
         if not stage.success:
-            errors = _parse_pipeline_error(stage.error)
+            errors = _parse_errors(stage.error)
             return PipelineResult(
                 success=False, asm=asm, stages=stages, errors=errors
             )
@@ -181,7 +183,7 @@ def run_pipeline(code: str) -> PipelineResult:
         stages.append(stage)
 
         if not stage.success:
-            errors = _parse_pipeline_error(stage.error)
+            errors = _parse_errors(stage.error)
             return PipelineResult(
                 success=False, asm=asm, stages=stages, errors=errors
             )
@@ -200,28 +202,3 @@ def run_pipeline(code: str) -> PipelineResult:
             stages=stages,
         )
 
-
-def _parse_pipeline_error(stderr: str) -> list[dict]:
-    """Parseia erros do pipeline em formato estruturado."""
-    errors: list[dict] = []
-    for line in stderr.strip().split("\n"):
-        line = line.strip()
-        if not line:
-            continue
-
-        error = {"line": 0, "column": 0, "message": line, "phase": "compiler"}
-
-        parts = line.split(":", 2)
-        try:
-            error["line"] = int(parts[0].strip())
-            if len(parts) >= 3:
-                error["column"] = int(parts[1].strip())
-                error["message"] = parts[2].strip()
-            elif len(parts) == 2:
-                error["message"] = parts[1].strip()
-        except (ValueError, IndexError):
-            pass
-
-        errors.append(error)
-
-    return errors
