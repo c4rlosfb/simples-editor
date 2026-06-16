@@ -1,5 +1,5 @@
 import { createRoute, redirect } from "@tanstack/react-router";
-import { supabase } from "src/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { rootRoute } from "./__root";
 
 export const indexRoute = createRoute({

@@ -1,7 +1,7 @@
 import { createRoute, redirect } from "@tanstack/react-router";
-import { supabase } from "src/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { rootRoute } from "./__root";
-import { LoginPage } from "src/components/LoginPage";
+import { LoginPage } from "@/components/LoginPage";
 
 export const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
