@@ -1,2 +1,7 @@
 .env
 _fix_pr58.py
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
