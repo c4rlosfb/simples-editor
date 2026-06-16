@@ -13,22 +13,10 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 COMPILE_TIMEOUT_S = 15
-
-
-class CompileError(Exception):
-    """Erro de compilação estruturado (linha, coluna, mensagem, fase)."""
-
-    def __init__(self, line: int, column: int, message: str, phase: str = "compiler"):
-        self.line = line
-        self.column = column
-        self.message = message
-        self.phase = phase
-        super().__init__(f"[{phase}] linha {line}:{column} — {message}")
 
 
 class CompileResult:

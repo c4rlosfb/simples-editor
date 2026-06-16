@@ -10,10 +10,12 @@ from __future__ import annotations
 import logging
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 from compiler import compile_simples
 
 app = Flask(__name__)
+CORS(app)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
