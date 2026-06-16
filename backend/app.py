@@ -17,7 +17,6 @@ from compiler import compile_simples
 app = Flask(__name__)
 CORS(app)
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
