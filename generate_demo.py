@@ -331,7 +331,7 @@ def make_frame(scene_num, duration_sec, total_frames_start):
         draw_text_centered(draw, "Linguagem SIMPLES", 60, "sans-bold", 44, WHITE)
         
         features = [
-            ("23 palavras reservadas", "programa, inicio, fim,\ninteiro, flutuante, vazio, leia, escreva,\nse, entao, senao, fimse, enquanto,\nfimenquanto, ate, para, faca,\ne, ou, nao, verdadeiro, falso, inicio_partes,\ndeclare_partes, registros"),
+            ("27 palavras reservadas", "programa, inicio, fim, inteiro, flutuante, vazio,\nleia, escreva, escreval, se, entao, senao, fimse,\nenquanto, fimenquanto, para, de, ate, passo, faca, fimpara,\ne, ou, nao, div, procedimento, retorna"),
             ("Tipos de Dados", "inteiro, flutuante, vazio\nSuporta vetores e registros"),
             ("Controle de Fluxo", "se...entao...senao\nenquanto...faca\nate\npara...faca"),
             ("E/S", 'leia(variavel)\nescreva("texto", valor)'),
