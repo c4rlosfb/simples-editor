@@ -2,6 +2,7 @@
 Testes para o pipeline de compilação com timeouts.
 """
 
+import platform
 import sys
 from pathlib import Path
 
@@ -25,7 +26,7 @@ class TestRunStage:
 
     def test_successful_command(self, tmp_path):
         """Comando bem-sucedido deve retornar StageResult com success=True."""
-        import platform
+
 
         cmd = ["echo", "hello"] if platform.system() != "Windows" else ["cmd", "/c", "echo hello"]
         result = _run_stage(cmd, timeout=5, name="test", workdir=tmp_path)
@@ -46,7 +47,7 @@ class TestRunStage:
 
     def test_timeout(self, tmp_path):
         """Comando que excede timeout deve retornar timed_out=True."""
-        import platform
+
 
         if platform.system() == "Windows":
             cmd = ["ping", "-n", "20", "127.0.0.1"]
