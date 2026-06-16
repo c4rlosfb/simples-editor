@@ -4,7 +4,7 @@
 
 - [ ] feat(docs): add initial README and repo bootstrap
 - [ ] feat(devops): configure github project board and automations
-- [x] feat(devops): define docker compose stack for frontend and backend
+- [ ] feat(devops): define docker compose stack for frontend and backend
 - [ ] feat(devops): make docker compose up serve the homepage
 - [ ] feat(backend): configure supabase auth integration
 - [ ] feat(frontend): add email and password login screen
@@ -15,7 +15,7 @@
 ## Sprint 2
 
 - [ ] feat(frontend): integrate monaco editor on main route
-- [x] feat(frontend): register simples language tokenizer with monarch
+- [ ] feat(frontend): register simples language tokenizer with monarch
 - [ ] feat(frontend): add dark theme with highlighted keywords
 - [ ] feat(frontend): build three-panel layout with nasm viewer
 - [ ] feat(frontend): add resizable splitter with double click collapse
@@ -25,7 +25,7 @@
 ## Sprint 3
 
 - [ ] feat(backend): package simplesc in backend container
-- [x] feat(backend): install binutils i686 linker support
+- [ ] feat(backend): install binutils i686 linker support
 - [ ] feat(backend): expose post api compile endpoint
 - [ ] feat(backend): parse compile errors with line column and phase
 - [ ] feat(frontend): render compile errors as monaco markers
@@ -39,26 +39,26 @@
 - [ ] feat(devops): build simples-runner image with qemu-user-static
 - [ ] feat(backend): implement pty execution strategy
 - [ ] feat(backend): bridge websocket and pty streams
-- [x] feat(backend): support interactive leia end to end
+- [ ] feat(backend): support interactive leia end to end
 - [ ] feat(backend): implement websocket protocol events
 
 ## Sprint 5
 
 - [ ] feat(frontend): wire stop button to backend stop signal
-- [x] feat(backend): enforce wall clock execution timeout
+- [ ] feat(backend): enforce wall clock execution timeout
 - [x] feat(devops): set docker hard stop timeout
-- [x] feat(security): apply sandbox isolation flags
+- [ ] feat(security): apply sandbox isolation flags
 - [ ] feat(backend): add per user execution rate limit
 - [ ] feat(devops): emit structured json logs
 - [ ] feat(backend): expose prometheus metrics endpoint
-- [x] feat(security): audit sandbox escape scenarios
-- [x] feat(docs): write sandbox incident response playbook
+- [ ] feat(security): audit sandbox escape scenarios
+- [ ] feat(docs): write sandbox incident response playbook
 
 ## Sprint 6
 
 - [ ] feat(frontend): add playwright e2e coverage for core flow
 - [ ] feat(backend): reach seventy percent test coverage
-- [x] feat(docs): complete readme with gifs and screenshots
+- [ ] feat(docs): complete readme with gifs and screenshots
 - [ ] feat(docs): produce demo video asset
 - [ ] feat(devops): deploy simples editor on oracle cloud ampere a1
 - [ ] feat(devops): configure custom domain for optional deployment
