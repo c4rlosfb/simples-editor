@@ -8,6 +8,7 @@ Referência: PRD §8.3 e §14.3
 from __future__ import annotations
 
 import logging
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -93,11 +94,7 @@ def verify_toolchain() -> dict[str, bool]:
 
     result = {}
     for name, binary in tools.items():
-        found = subprocess.run(
-            ["which", binary],
-            capture_output=True,
-            text=True,
-        ).returncode == 0
+        found = shutil.which(binary) is not None
         result[name] = found
         if not found:
             logger.warning("Ferramenta '%s' (%s) não encontrada", name, binary)

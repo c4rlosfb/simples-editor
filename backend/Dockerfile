@@ -16,8 +16,11 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --break-system-packages -r requirements.txt
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install -r requirements.txt
+ENV PATH="/opt/venv/bin:$PATH"
 COPY . .
 
 EXPOSE 5000
+USER nobody
 CMD ["gunicorn", "-k", "gevent", "-w", "4", "-b", "0.0.0.0:5000", "wsgi:app"]

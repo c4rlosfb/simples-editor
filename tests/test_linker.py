@@ -6,6 +6,7 @@ que o linker gera binários ELF i386 corretos.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -22,16 +23,12 @@ class TestToolchainAvailability:
 
     def test_ld_i686_exists(self):
         """i686-linux-gnu-ld deve estar no PATH."""
-        result = subprocess.run(
-            ["which", LD],
-            capture_output=True,
-            text=True,
-        )
+        found = shutil.which(LD)
         # Pode não estar instalado no dev local — não falha, apenas avisa
-        if result.returncode != 0:
+        if not found:
             pytest.skip(f"{LD} não instalado no ambiente de dev local")
 
-        assert result.returncode == 0
+        assert found is not None
 
     def test_verify_toolchain_returns_dict(self):
         """verify_toolchain() deve retornar um dicionário com as ferramentas."""
@@ -63,9 +60,7 @@ class TestLinkObject:
             output = obj_path.with_suffix("")
 
             # Só roda se o linker estiver instalado
-            if not subprocess.run(
-                ["which", LD], capture_output=True
-            ).returncode == 0:
+            if shutil.which(LD) is None:
                 pytest.skip(f"{LD} não disponível")
 
             success, msg = link_object(obj_path, output)
@@ -79,16 +74,12 @@ class TestLinkObject:
 
     def test_link_valid_elf32(self):
         """ELF32 válido deve ser linkado com sucesso."""
-        if not subprocess.run(
-            ["which", LD], capture_output=True
-        ).returncode == 0:
+        if shutil.which(LD) is None:
             pytest.skip(f"{LD} não disponível")
 
         # Cria um .o mínimo via nasm (se disponível)
-        nasm = subprocess.run(
-            ["which", "nasm"], capture_output=True, text=True
-        )
-        if nasm.returncode != 0:
+        nasm = shutil.which("nasm")
+        if nasm is None:
             pytest.skip("nasm não disponível")
 
         asm_source = """
