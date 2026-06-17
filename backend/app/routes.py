@@ -142,8 +142,17 @@ def compile_code():
 
     result: CompileResult = compile_simples(code)
     if result.success:
-        logger.info("Compilação bem-sucedida: %d bytes de NASM", len(result.asm))
-        return jsonify({"success": True, "asm": result.asm})
+        asm = result.asm_source or ""
+        logger.info("Compilação bem-sucedida: %d bytes de NASM", len(asm))
+        return jsonify({"success": True, "asm": asm})
 
-    logger.warning("Compilação falhou: %d erros", len(result.errors))
-    return jsonify({"success": False, "errors": result.errors}), 422
+    errors = [{
+        "line": e.line or 0, "column": e.column or 0,
+        "message": e.message, "phase": e.phase or "compiler"
+    } for e in result.errors] if result.errors else [{
+        "line": 0, "column": 0,
+        "message": result.error_message or "Erro de compilação",
+        "phase": "compiler"
+    }]
+    logger.warning("Compilação falhou: %d erros", len(errors))
+    return jsonify({"success": False, "errors": errors}), 422
