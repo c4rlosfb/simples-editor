@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 import pytest
 from app import create_app
 flask_app = create_app()
-from compiler import compile_simples, CompileResult, _parse_errors
+from app.compiler import compile_simples, CompileResult, _parse_errors
 
 
 @pytest.fixture

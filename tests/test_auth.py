@@ -13,7 +13,7 @@ import jwt as pyjwt
 import pytest
 from flask import Flask, g
 
-from auth import verify_jwt, verify_token, _jwks_cache
+from app.auth import verify_jwt, verify_token, _jwks_cache
 
 # --- Helpers ---
 
