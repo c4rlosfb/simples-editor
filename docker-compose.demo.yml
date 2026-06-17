@@ -1,7 +1,4 @@
 # docker-compose.demo.yml — versão funcional para apresentação
-# Backend usa Python slim (sem apt-get no Windows)
-# Frontend build com npm install (não npm ci)
-# Runner usa imagem já buildada
 services:
   nginx:
     image: nginx:1.25-alpine
@@ -33,6 +30,9 @@ services:
     expose:
       - "5000"
     environment:
+      - SUPABASE_URL=https://hdrkvdlalhdzesgbwbta.supabase.co
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhkcmt2ZGxhbGhkemVzZ2J3YnRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5OTI1MTYsImV4cCI6MjA5NTU2ODUxNn0.Meus8nbZ8smfujB1Kih96sGltn6D4scLBasNmWyI2y0
+      - SUPABASE_JWT_SECRET=wSe3ySdizWnHox6yvkVgqQ3GWpfdvVnjAA4DqdB1TgCiixOR67q+SsRxWyx+XiFjYnBPgafgZ3l6A+2/S9XqXQ==
       - FLASK_ENV=development
       - LOG_LEVEL=INFO
     volumes:

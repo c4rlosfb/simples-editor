@@ -8,6 +8,7 @@ Implements the REST endpoints defined in PRD §9.1:
 """
 
 import logging
+import os
 import subprocess
 
 from flask import Blueprint, jsonify, g, request
@@ -66,10 +67,13 @@ def health():
     except Exception:
         docker_status = {"status": "unavailable"}
 
-    # Check Supabase config
+    # Check Supabase config (verifica env var diretamente)
     supabase_status = {"status": "ok"}
-    if not config.supabase_jwt_secret or config.supabase_jwt_secret == "dev-secret-do-not-use-in-prod":
+    secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("SUPABASE_JWT_SECRET", ""))
+    if not secret or secret == "dev-secret-do-not-use-in-prod":
         supabase_status = {"status": "degraded", "message": "Using development JWT secret"}
+    else:
+        supabase_status = {"status": "ok", "secret_configured": True, "length": len(secret)}
 
     components = {
         "compiler": compiler_status,
