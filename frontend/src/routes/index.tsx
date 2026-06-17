@@ -9,6 +9,10 @@ export const indexRoute = createRoute({
   path: "/",
   component: IndexRoute,
   beforeLoad: async () => {
+    // Modo demonstração: pula autenticação Supabase
+    if (import.meta.env.VITE_DEMO_MODE === "true") {
+      return;
+    }
     try {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {

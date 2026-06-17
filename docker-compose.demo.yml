@@ -21,6 +21,8 @@ services:
       dockerfile: Dockerfile
     expose:
       - "80"
+    environment:
+      - VITE_DEMO_MODE=true
     networks:
       - simples-net
 
