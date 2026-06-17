@@ -12,7 +12,8 @@ os.environ.setdefault("SIMPLESC_MOCK", "true")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 import pytest
-from app import app as flask_app
+from app import create_app
+flask_app = create_app()
 from compiler import compile_simples, CompileResult, _parse_errors
 
 
