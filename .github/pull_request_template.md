@@ -15,3 +15,4 @@
 - [ ] Atualizei o README se necessário
 - [ ] Não introduzi breaking changes
 - [ ] CI verde
+- [ ] Esta é minha primeira contribuição? (se sim, solicite revisão adicional)
