@@ -1,71 +1,36 @@
-/**
- * Registro da linguagem SIMPLES no Monaco Editor.
- *
- * Configura o tokenizer Monarch e o tema dark customizado.
- * Deve ser importado ANTES de criar instâncias do Monaco Editor.
- *
- * Referência: PRD §13.1 e §13.2
- */
-
-import type { editor, languages } from "monaco-editor";
+import type { editor } from "monaco-editor";
 import { simplesLanguage } from "./simples-monarch";
 
-const LANGUAGE_ID = "simples";
-
+export const LANGUAGE_ID = "simples";
 let registered = false;
 
-/**
- * Registra a linguagem SIMPLES no Monaco Editor.
- *
- * Idempotente — só executa na primeira chamada.
- */
 export function registerSimplesLanguage(): void {
   if (registered) return;
-
   const monaco = getMonaco();
-
-  // 1. Registra a linguagem
-  monaco.languages.register({ id: LANGUAGE_ID });
-
-  // 2. Configura o tokenizer Monarch
-  monaco.languages.setMonarchTokensProvider(LANGUAGE_ID, simplesLanguage);
-
-  // 3. Tema dark customizado
-  monaco.editor.defineTheme("simples-dark", createSimplesDarkTheme());
-
+  registerSimplesLanguageWith(monaco);
   registered = true;
 }
 
-/**
- * Cria a definição do tema dark "simples-dark".
- *
- * Keywords em ciano, números em laranja, strings em verde,
- * comentários em cinza, identificadores neutros.
- */
+export function registerSimplesLanguageWith(monaco: typeof import("monaco-editor")): void {
+  monaco.languages.register({ id: LANGUAGE_ID });
+  monaco.languages.setMonarchTokensProvider(LANGUAGE_ID, simplesLanguage);
+  monaco.editor.defineTheme("simples-dark", createSimplesDarkTheme());
+}
+
 function createSimplesDarkTheme(): editor.IStandaloneThemeData {
   return {
-    base: "vs-dark",
-    inherit: true,
+    base: "vs-dark", inherit: true,
     rules: [
-      // Keywords SIMPLES
-      { token: "keyword", foreground: "#22d3ee", fontStyle: "bold" },       // ciano
-      // Operadores
-      { token: "operator", foreground: "#c084fc" },                          // roxo
-      // Números
-      { token: "number", foreground: "#fb923c" },                            // laranja
-      { token: "number.float", foreground: "#fb923c" },                      // laranja
-      // Strings
-      { token: "string", foreground: "#4ade80" },                            // verde
-      // Comentários
-      { token: "comment", foreground: "#6b7280", fontStyle: "italic" },      // cinza
-      // Identificadores
-      { token: "identifier", foreground: "#e5e7eb" },                        // cinza claro
-      // Delimitadores
-      { token: "delimiter", foreground: "#9ca3af" },                         // cinza médio
-      // Type annotations (futuro)
-      { token: "type", foreground: "#67e8f9" },                              // ciano claro
-      // Funções (procedimentos)
-      { token: "function", foreground: "#fde047" },                          // amarelo
+      { token: "keyword", foreground: "#22d3ee", fontStyle: "bold" },
+      { token: "operator", foreground: "#c084fc" },
+      { token: "number", foreground: "#fb923c" },
+      { token: "number.float", foreground: "#fb923c" },
+      { token: "string", foreground: "#4ade80" },
+      { token: "comment", foreground: "#6b7280", fontStyle: "italic" },
+      { token: "identifier", foreground: "#e5e7eb" },
+      { token: "delimiter", foreground: "#9ca3af" },
+      { token: "type", foreground: "#67e8f9" },
+      { token: "function", foreground: "#fde047" },
     ],
     colors: {
       "editor.background": "#0a0a0a",
@@ -83,30 +48,12 @@ function createSimplesDarkTheme(): editor.IStandaloneThemeData {
   };
 }
 
-/**
- * Helper para obter a instância global do Monaco.
- *
- * Em ambiente com @monaco-editor/react, a instância está disponível
- * via `loader.config({ monaco })`.
- */
 function getMonaco(): typeof import("monaco-editor") {
-  // @ts-ignore — monaco é exposto globalmente pelo Monaco Editor
-  const monaco = (typeof window !== "undefined" && (window as any).monaco)
-    || (globalThis as any).monaco;
-
-  if (!monaco) {
-    throw new Error(
-      "Monaco Editor não encontrado. " +
-      "Certifique-se de que o bundle foi carregado antes de registrar a linguagem."
-    );
-  }
-
+  const monaco = (typeof window !== "undefined" && (window as any).monaco) || (globalThis as any).monaco;
+  if (!monaco) throw new Error("Monaco Editor não encontrado.");
   return monaco;
 }
 
-/**
- * Configuração padrão do editor para a linguagem SIMPLES.
- */
 export const SIMPLES_EDITOR_OPTIONS: editor.IStandaloneEditorConstructionOptions = {
   language: LANGUAGE_ID,
   theme: "simples-dark",
