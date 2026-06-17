@@ -3,6 +3,7 @@
 Implements the REST endpoints defined in PRD §9.1:
 - GET /api/health
 - POST /api/auth/verify
+- POST /api/compile
 - GET /api/limits
 """
 
@@ -12,6 +13,7 @@ import subprocess
 from flask import Blueprint, jsonify, g, request
 
 from app.auth import require_auth, verify_jwt, extract_user_id
+from app.compiler import compile_simples, CompileResult
 from app.config import config
 
 logger = logging.getLogger("simples.routes")
@@ -94,7 +96,7 @@ def health():
 def auth_verify():
     """Validate JWT and return user info.
 
-    Requires Authorization: Bearer <jwt> header.
+    Requires Authorization: Bearer *** header.
     """
     return jsonify({
         "valid": True,
@@ -112,3 +114,36 @@ def limits():
         "max_code_kb": config.max_code_kb,
         "runs_per_minute": config.runs_per_minute,
     })
+
+
+@routes_bp.route("/api/compile", methods=["POST"])
+def compile_code():
+    """Compile SIMPLES code and return NASM assembly.
+
+    POST /api/compile
+    Body: {"code": "programa exemplo\ninicio\n  escreva \"ola\"\nfim"}
+    Returns: {"success": true, "asm": "..."} or {"success": false, "errors": [...]}
+    """
+    body = request.get_json(silent=True)
+    if not body or "code" not in body:
+        return jsonify({"success": False, "errors": [{
+            "line": 0, "column": 0,
+            "message": "Campo 'code' é obrigatório",
+            "phase": "validation"
+        }]}), 400
+
+    code = body["code"]
+    if len(code.encode("utf-8")) > config.max_code_bytes:
+        return jsonify({"success": False, "errors": [{
+            "line": 0, "column": 0,
+            "message": f"Código excede o limite de {config.max_code_kb} KB",
+            "phase": "validation"
+        }]}), 413
+
+    result: CompileResult = compile_simples(code)
+    if result.success:
+        logger.info("Compilação bem-sucedida: %d bytes de NASM", len(result.asm))
+        return jsonify({"success": True, "asm": result.asm})
+
+    logger.warning("Compilação falhou: %d erros", len(result.errors))
+    return jsonify({"success": False, "errors": result.errors}), 422
