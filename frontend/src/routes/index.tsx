@@ -1,4 +1,4 @@
-import { createRoute, redirect } from "@tanstack/react-router";
+import { createRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
 import { rootRoute } from "./__root";
 
@@ -21,9 +21,10 @@ export const indexRoute = createRoute({
 });
 
 function IndexRoute() {
+  const navigate = useNavigate();
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    throw redirect({ to: "/login" });
+    navigate({ to: "/login" });
   };
 
   return (
