@@ -1,5 +1,4 @@
 # Backend runtime — Ubuntu 24.04 + toolchain SIMPLES
-# Funciona em x86_64 (dev) e ARM64 (Oracle Ampere A1)
 # Referência: PRD §14.3
 FROM ubuntu:24.04
 
@@ -8,8 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nasm \
     binutils-i686-linux-gnu \
     python3.11 python3.11-venv python3-pip \
-    ca-certificates curl \
-    libffi-dev libssl-dev \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
