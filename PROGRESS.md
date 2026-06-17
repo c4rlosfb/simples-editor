@@ -24,10 +24,10 @@
 
 ## Sprint 3
 
-- [ ] feat(backend): package simplesc in backend container
-- [ ] feat(backend): install binutils i686 linker support
-- [ ] feat(backend): expose post api compile endpoint
-- [ ] feat(backend): parse compile errors with line column and phase
+- [x] feat(backend): package simplesc in backend container
+- [x] feat(backend): install binutils i686 linker support
+- [x] feat(backend): expose post api compile endpoint
+- [x] feat(backend): parse compile errors with line column and phase
 - [ ] feat(frontend): render compile errors as monaco markers
 - [ ] feat(frontend): auto populate nasm panel after compile
 - [ ] feat(backend): enforce compile timeout for pipeline stages

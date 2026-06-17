@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Toolchain cross-target i386 + Python 3.11
 # Funciona em x86_64 (dev local) e ARM64 (Oracle Cloud Ampere A1)
 # Referência: PRD §14.3
@@ -24,3 +25,23 @@ COPY . .
 EXPOSE 5000
 USER 65534:65534
 CMD ["gunicorn", "-k", "gevent", "-w", "4", "-b", "0.0.0.0:5000", "wsgi:app"]
+=======
+FROM python:3.12-slim
+
+# Install binutils for i686 linking (nasm + ld)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    binutils-i686-linux-gnu \
+    nasm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy pre-compiled simplesc binary
+COPY simplesc /usr/local/bin/simplesc
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+
+EXPOSE 8000
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "app:app"]
+>>>>>>> origin/fix/issue-21
