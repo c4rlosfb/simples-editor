@@ -1,0 +1,64 @@
+name: Validate PR Coverage
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"   # Every Monday at 12:00 UTC
+  workflow_dispatch:        # Manual trigger
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check merged PRs per contributor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "## PR Coverage Report" > pr-report.md
+          echo "" >> pr-report.md
+          echo "| Contributor | GitHub Login | Merged PRs | Status |" >> pr-report.md
+          echo "|------------|-------------|------------|--------|" >> pr-report.md
+
+          # Get all contributors from git log, extract GitHub login from noreply email
+          # Format: "ID+LOGIN@users.noreply.github.com" -> extract LOGIN
+          git log --format="%aN|%ae" --all | sort -u | while IFS='|' read -r name email; do
+            # Skip bots
+            case "$name" in
+              *bot*|*Bot*|*\[bot\]*) continue ;;
+            esac
+
+            # Extract GitHub login from noreply email, fallback to author name
+            if [[ "$email" == *"+""@"*"users.noreply.github.com" ]]; then
+              login="${email#*+}"
+              login="${login%@*}"
+            else
+              # For non-noreply emails, use git author name as fallback
+              login="$name"
+            fi
+
+            # Count merged PRs by this GitHub login
+            count=$(gh pr list --author "$login" --state merged --json number --jq 'length' 2>/dev/null </dev/null || echo 0)
+
+            if [ "$count" -ge 1 ]; then
+              status="PASS"
+            else
+              status="FAIL"
+            fi
+            echo "| $name | $login | $count | $status |" >> pr-report.md
+          done
+
+          echo "" >> pr-report.md
+          echo "_Generated at: $(date -u '+%Y-%m-%d %H:%M UTC')_" >> pr-report.md
+
+          cat pr-report.md
+
+          # Check if any contributor has 0 merged PRs
+          if grep -q "FAIL" pr-report.md; then
+            echo "ALGUNS CONTRIBUIDORES AINDA NAO TEM PR MERGEADO!"
+            exit 1
+          else
+            echo "TODOS OS CONTRIBUIDORES TEM PELO MENOS 1 PR MERGEADO!"
+          fi
