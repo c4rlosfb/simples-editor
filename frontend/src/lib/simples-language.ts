@@ -7,10 +7,10 @@
  * Referência: PRD §13.1 e §13.2
  */
 
-import type { editor, languages } from "monaco-editor";
+import type { editor } from "monaco-editor";
 import { simplesLanguage } from "./simples-monarch";
 
-const LANGUAGE_ID = "simples";
+export const LANGUAGE_ID = "simples";
 
 let registered = false;
 
@@ -18,12 +18,24 @@ let registered = false;
  * Registra a linguagem SIMPLES no Monaco Editor.
  *
  * Idempotente — só executa na primeira chamada.
+ * Obtém o monaco de window/globalThis (útil para setup global).
  */
 export function registerSimplesLanguage(): void {
   if (registered) return;
-
   const monaco = getMonaco();
+  registerSimplesLanguageWith(monaco);
+  registered = true;
+}
 
+/**
+ * Registra a linguagem SIMPLES usando uma instância do Monaco fornecida.
+ *
+ * Ideal para uso com @monaco-editor/react, onde a instância é recebida
+ * via callback beforeMount.
+ */
+export function registerSimplesLanguageWith(
+  monaco: typeof import("monaco-editor")
+): void {
   // 1. Registra a linguagem
   monaco.languages.register({ id: LANGUAGE_ID });
 
@@ -32,8 +44,6 @@ export function registerSimplesLanguage(): void {
 
   // 3. Tema dark customizado
   monaco.editor.defineTheme("simples-dark", createSimplesDarkTheme());
-
-  registered = true;
 }
 
 /**
