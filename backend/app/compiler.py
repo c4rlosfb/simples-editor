@@ -192,21 +192,24 @@ def compile_simples(code: str) -> CompileResult:
     Uses CompilerService when simplesc is on PATH, otherwise returns
     a mock NASM result for development/demo purposes.
     """
-    try:
-        service = CompilerService()
-        result = service.compile(code)
-        return result
-    except Exception:
-        logger.warning("simplesc indisponível — usando mock de demonstração")
-        return CompileResult(
-            success=True,
-            asm_source=f"; SIMPLES → NASM (mock — instale simplesc para compilação real)\n"
-                      f"; Código recebido: {len(code)} bytes\n"
-                      f"section .text\n"
-                      f"    global _start\n"
-                      f"_start:\n"
-                      f"    mov eax, 1\n"
-                      f"    xor ebx, ebx\n"
-                      f"    int 0x80\n",
-            duration_ms=0,
-        )
+    import shutil
+    if shutil.which("simplesc"):
+        try:
+            service = CompilerService()
+            return service.compile(code)
+        except Exception:
+            logger.warning("Compilação real falhou — usando mock")
+
+    logger.info("simplesc indisponível — usando mock de demonstração")
+    return CompileResult(
+        success=True,
+        asm_source=f"; SIMPLES → NASM (mock — demonstração)\n"
+                  f"; Código: {len(code)} bytes\n"
+                  f"section .text\n"
+                  f"    global _start\n"
+                  f"_start:\n"
+                  f"    mov eax, 1\n"
+                  f"    xor ebx, ebx\n"
+                  f"    int 0x80\n",
+        duration_ms=0,
+    )
