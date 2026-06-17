@@ -7,7 +7,7 @@
 - [ ] feat(devops): define docker compose stack for frontend and backend
 - [ ] feat(devops): make docker compose up serve the homepage
 - [ ] feat(backend): configure supabase auth integration
-- [ ] feat(frontend): add email and password login screen
+- [x] feat(frontend): add email and password login screen
 - [ ] feat(backend): add verify_jwt decorator for protected endpoints
 - [ ] feat(backend): expose api health status endpoint
 - [x] feat(devops): validate one merged pr per contributor

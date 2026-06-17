@@ -1,8 +1,13 @@
 .env
+.env.local
 __pycache__/
 *.pyc
+*.pyo
 node_modules/
 dist/
 .vite/
+.venv/
+venv/
 *.tsbuildinfo
 .reasonix/
+*.log
