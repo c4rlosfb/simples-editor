@@ -1,5 +1,5 @@
 """
-Módulo de autenticação via Supabase.
+Módulo de autenticação via Supabase — @verify_jwt decorator.
 
 Gerencia validação de JWT e fornece o decorator @verify_jwt
 para proteger endpoints REST e WebSocket.
@@ -13,13 +13,13 @@ from functools import wraps
 from typing import Any, Callable
 
 import jwt as pyjwt
-from flask import current_app, g, request
+from flask import g, request
 
 from config import config
 
 logger = logging.getLogger(__name__)
 
-# Cache do JWKS do Supabase — evita fetch em toda request
+# Cache do JWKS do Supabase — armazena todas as chaves para suportar rotação
 _jwks_cache: list[dict[str, Any]] | None = None
 
 
@@ -36,7 +36,6 @@ def _get_jwks() -> list[dict[str, Any]]:
 
     import urllib.request
 
-    # Supabase JWKS URL baseada na project URL
     jwks_url = f"{config.supabase_url}/.well-known/jwks.json"
     try:
         with urllib.request.urlopen(jwks_url, timeout=5) as resp:
@@ -53,18 +52,21 @@ def verify_token(token: str) -> dict[str, Any] | None:
     """
     Valida um JWT do Supabase.
 
-    Retorna o payload decodificado se válido, None caso contrário.
+    Fluxo:
+    1. Tenta validar com JWKS (RS256) — ideal, usa chave pública.
+    2. Fallback: valida com JWT_SECRET (HS256) — útil em testes/dev.
+
     Suporta rotação de chaves: seleciona a chave JWK pelo ``kid`` do header JWT.
+
+    Retorna o payload decodificado se válido, None caso contrário.
     """
     if not token:
         return None
 
-    # Remove prefixo 'Bearer ' se presente
     if token.startswith("Bearer "):
         token = token[7:]
 
     try:
-        # Tenta validar com o JWKS primeiro
         jwks_keys = _get_jwks()
         if jwks_keys:
             # Extrai o kid do header JWT (sem validar) para selecionar a chave correta
@@ -94,7 +96,6 @@ def verify_token(token: str) -> dict[str, Any] | None:
                     options={"verify_aud": False},
                 )
             else:
-                # Fallback: validação HMAC com o JWT secret
                 payload = pyjwt.decode(
                     token,
                     config.supabase_jwt_secret,
@@ -102,14 +103,12 @@ def verify_token(token: str) -> dict[str, Any] | None:
                     options={"verify_aud": False},
                 )
         else:
-            # Fallback: validação HMAC com o JWT secret
             payload = pyjwt.decode(
                 token,
                 config.supabase_jwt_secret,
                 algorithms=["HS256"],
                 options={"verify_aud": False},
             )
-
         return payload
 
     except pyjwt.ExpiredSignatureError:
@@ -124,13 +123,13 @@ def verify_jwt(f: Callable) -> Callable:
     """
     Decorator para proteger endpoints Flask.
 
-    Extrai o token do header Authorization, valida via Supabase,
-    e injeta `g.user_id` e `g.user_email` no contexto da requisição.
+    Extrai o token do header ``Authorization``, valida via Supabase,
+    e injeta ``g.user_id`` e ``g.user_email`` no contexto da requisição.
 
-    Uso:
+    Exemplo:
         @app.route("/api/protected")
         @verify_jwt
-        def protected_route():
+        def protected():
             return {"user_id": g.user_id}
     """
 
@@ -144,6 +143,7 @@ def verify_jwt(f: Callable) -> Callable:
 
         g.user_id = payload.get("sub")
         g.user_email = payload.get("email", "")
+        g.token_payload = payload
 
         return f(*args, **kwargs)
 
@@ -154,7 +154,7 @@ def verify_websocket_token(token: str) -> dict[str, Any] | None:
     """
     Valida JWT no handshake WebSocket.
 
-    O token pode vir via query param `?token=<jwt>` ou
-    header `Sec-WebSocket-Protocol: bearer.<jwt>`.
+    O token pode vir via query param ``?token=<jwt>`` ou
+    header ``Sec-WebSocket-Protocol: bearer.<jwt>``.
     """
     return verify_token(token)
