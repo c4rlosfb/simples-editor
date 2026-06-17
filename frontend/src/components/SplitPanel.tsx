@@ -1,0 +1,86 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+interface SplitPanelProps {
+  left: React.ReactNode;
+  right: React.ReactNode;
+  defaultRatio?: number;
+  minRatio?: number;
+  maxRatio?: number;
+}
+
+function SplitPanel({
+  left,
+  right,
+  defaultRatio = 0.6,
+  minRatio = 0.2,
+  maxRatio = 0.9,
+}: SplitPanelProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [ratio, setRatio] = useState(defaultRatio);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const prevRatioRef = useRef(defaultRatio);
+  const draggingRef = useRef(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  const handleDoubleClick = useCallback(() => {
+    if (isCollapsed) {
+      setIsCollapsed(false);
+      setRatio(prevRatioRef.current);
+    } else {
+      prevRatioRef.current = ratio;
+      setIsCollapsed(true);
+    }
+  }, [isCollapsed, ratio]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!draggingRef.current) return;
+      const rect = container.getBoundingClientRect();
+      let newRatio = (e.clientX - rect.left) / rect.width;
+      newRatio = Math.max(minRatio, Math.min(maxRatio, newRatio));
+      setRatio(newRatio);
+      setIsCollapsed(false);
+    };
+
+    const onMouseUp = () => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [minRatio, maxRatio]);
+
+  const leftStyle: React.CSSProperties = isCollapsed
+    ? { flex: "1", width: "100%" }
+    : { flex: `${ratio}` };
+
+  const rightStyle: React.CSSProperties = isCollapsed
+    ? { flex: "none", width: 0, overflow: "hidden" }
+    : { flex: "1" };
+
+  return (
+    <div ref={containerRef} className="split-panel">
+      <div className="split-panel__left" style={leftStyle}>{left}</div>
+      <div className="split-panel__divider" onMouseDown={handleMouseDown} onDoubleClick={handleDoubleClick} />
+      <div className="split-panel__right" style={rightStyle}>{right}</div>
+    </div>
+  );
+}
+
+export default SplitPanel;

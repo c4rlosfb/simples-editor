@@ -1,0 +1,79 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%; width: 100%; overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  background-color: #0a0a0a;
+  color: #e5e7eb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ───── App layout ───── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+.app-header {
+  display: flex; align-items: center; padding: 0 20px; height: 48px;
+  background-color: #0f0f0f; border-bottom: 1px solid #1f2937; flex-shrink: 0;
+}
+.app-header h1 { font-size: 16px; font-weight: 600; color: #22d3ee; letter-spacing: 0.02em; }
+.app-main { flex: 1; overflow: hidden; }
+
+/* ───── Toolbar ───── */
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; height: 44px; background-color: #0f0f0f;
+  border-bottom: 1px solid #1f2937; flex-shrink: 0; gap: 12px;
+}
+.toolbar__left, .toolbar__right { display: flex; align-items: center; gap: 8px; }
+.toolbar__btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+  font-size: 13px; font-weight: 500; border: 1px solid #1f2937; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s ease; background-color: #1a1a1a;
+  color: #e5e7eb; font-family: inherit;
+}
+.toolbar__btn:hover:not(:disabled) { background-color: #2a2a2a; border-color: #374151; }
+.toolbar__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.toolbar__btn--run { color: #4ade80; border-color: #166534; }
+.toolbar__btn--run:hover:not(:disabled) { background-color: #052e16; border-color: #22c55e; }
+.toolbar__btn--run.toolbar__btn--active { background-color: #052e16; border-color: #22c55e; color: #86efac; }
+.toolbar__btn--stop { color: #f87171; border-color: #7f1d1d; }
+.toolbar__btn--stop:hover:not(:disabled) { background-color: #450a0a; border-color: #ef4444; }
+.toolbar__run-icon { font-size: 14px; }
+.toolbar__state-label { font-size: 12px; color: #6b7280; }
+
+/* ───── Split Panel ───── */
+.split-panel { display: flex; flex-direction: row; height: 100%; width: 100%; }
+.split-panel__left, .split-panel__right { overflow: hidden; min-width: 0; display: flex; flex-direction: column; }
+.split-panel__divider {
+  width: 6px; cursor: col-resize; background-color: #1f2937;
+  flex-shrink: 0; position: relative; transition: background-color 0.15s ease;
+}
+.split-panel__divider::after {
+  content: ""; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%); width: 2px; height: 32px;
+  background-color: #374151; border-radius: 2px; transition: background-color 0.15s ease;
+}
+.split-panel__divider:hover, .split-panel__divider:active { background-color: #22d3ee; }
+.split-panel__divider:hover::after, .split-panel__divider:active::after { background-color: #22d3ee; }
+
+/* ───── Editor ───── */
+.editor-container { height: 100%; width: 100%; }
+
+/* ───── NASM Panel ───── */
+.nasm-panel { display: flex; flex-direction: column; height: 100%; background-color: #0f0f0f; }
+.nasm-panel__header {
+  display: flex; align-items: center; gap: 8px; padding: 0 16px;
+  height: 36px; background-color: #0a0a0a; border-bottom: 1px solid #1f2937; flex-shrink: 0;
+}
+.nasm-panel__title { font-size: 13px; font-weight: 600; color: #e5e7eb; }
+.nasm-panel__badge { font-size: 11px; color: #6b7280; background-color: #1f2937; padding: 1px 6px; border-radius: 4px; }
+.nasm-panel__editor { flex: 1; overflow: hidden; }
