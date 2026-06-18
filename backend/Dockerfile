@@ -16,9 +16,11 @@ RUN python3 -m venv /venv && \
     /venv/bin/pip install --no-cache-dir -r requirements.txt
 ENV PATH="/venv/bin:$PATH"
 
-# Copy pre-built simplesc binary (compiled from simples-compiler repo)
-COPY simples-compiler/build/simplesc /usr/local/bin/simplesc
-RUN chmod +x /usr/local/bin/simplesc
+# Build simplesc: compile from source if available, otherwise create mock
+# (Unified with Dockerfile.demo — both use build_simplesc.sh)
+COPY build_simplesc.sh /tmp/
+COPY simples-compiler/ /app/simples-compiler/
+RUN bash /tmp/build_simplesc.sh && rm /tmp/build_simplesc.sh
 
 COPY . .
 

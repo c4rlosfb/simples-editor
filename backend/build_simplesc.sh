@@ -4,7 +4,7 @@
 # PRD §14.3: Dockerfile must compile simplesc from source.
 set -e
 
-SIMPLESC_SRC="/app/simples-compiler"
+SIMPLESC_SRC="${SIMPLESC_SRC_DIR:-/app/simples-compiler}"
 INSTALL_PATH="/usr/local/bin/simplesc"
 
 echo "=== Building simplesc compiler ==="
