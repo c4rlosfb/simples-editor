@@ -54,6 +54,54 @@ class TestSandboxFactory:
         assert cfg.image == config.sandbox_image
         assert cfg.network_mode == "none"
 
+    @patch("app.sandbox.docker.from_env")
+    def test_client_lazy_init(self, mock_from_env):
+        """Client should be lazily initialized on first access."""
+        mock_client = MagicMock()
+        mock_from_env.return_value = mock_client
+
+        factory = SandboxFactory()
+        assert factory._client is None
+
+        client = factory.client
+        assert client == mock_client
+        mock_from_env.assert_called_once()
+
+        # Second access should return cached client
+        client2 = factory.client
+        assert client2 == mock_client
+        mock_from_env.assert_called_once()  # Still only called once
+
+    @patch("app.sandbox.docker.from_env")
+    def test_create_container(self, mock_from_env):
+        """create_container should call docker with all security parameters."""
+        mock_client = MagicMock()
+        mock_from_env.return_value = mock_client
+        mock_container = MagicMock()
+        mock_client.containers.run.return_value = mock_container
+
+        factory = SandboxFactory(image="test-image:v1")
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            binary_dir = Path(tmpdir)
+
+            container = factory.create_container(binary_dir)
+
+            assert container == mock_container
+            mock_client.containers.run.assert_called_once()
+            call_kwargs = mock_client.containers.run.call_args[1]
+
+            assert call_kwargs["image"] == "test-image:v1"
+            assert call_kwargs["network_mode"] == "none"
+            assert call_kwargs["mem_limit"] == "128m"
+            assert call_kwargs["memswap_limit"] == "128m"
+            assert call_kwargs["cpu_quota"] == 50000
+            assert call_kwargs["pids_limit"] == 64
+            assert call_kwargs["read_only"] is True
+            assert call_kwargs["user"] == "65534:65534"
+            assert call_kwargs["cap_drop"] == ["ALL"]
+            assert call_kwargs["stop_timeout"] == 12
+
     def test_cleanup_container(self):
         """cleanup_container should force-remove the container."""
         factory = SandboxFactory()

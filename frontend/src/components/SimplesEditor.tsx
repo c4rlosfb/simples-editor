@@ -31,6 +31,8 @@ interface SimplesEditorProps {
   onChange?: (code: string) => void;
   /** Código inicial (opcional, usa DEFAULT_CODE se não informado). */
   defaultValue?: string;
+  /** Quando true, o editor fica em modo somente-leitura (ex: durante compilação/execução). */
+  readOnly?: boolean;
 }
 
 /**
@@ -40,7 +42,7 @@ interface SimplesEditorProps {
  * possa ler o código e aplicar markers de erro.
  */
 const SimplesEditor = forwardRef<SimplesEditorHandle, SimplesEditorProps>(
-  function SimplesEditor({ onChange, defaultValue }, ref) {
+  function SimplesEditor({ onChange, defaultValue, readOnly }, ref) {
     const editorRef =
       useRef<import("monaco-editor").editor.IStandaloneCodeEditor | null>(null);
     // Guarda a instância do monaco para uso em markers
@@ -89,7 +91,10 @@ const SimplesEditor = forwardRef<SimplesEditorHandle, SimplesEditorProps>(
           beforeMount={handleBeforeMount}
           onMount={handleOnMount}
           onChange={handleChange}
-          options={SIMPLES_EDITOR_OPTIONS}
+          options={{
+            ...SIMPLES_EDITOR_OPTIONS,
+            ...(readOnly !== undefined ? { readOnly } : {}),
+          }}
         />
       </div>
     );

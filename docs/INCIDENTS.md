@@ -3,11 +3,19 @@
 > **Propósito**: Guia de resposta para incidentes de segurança no Simples Editor.
 > Foco principal: escape de sandbox, abuso de execução, e comprometimento do backend.
 > **Público-alvo**: Equipe de plataforma / administradores do sistema.
+>
+> **Última auditoria**: 2026-06-17 — Todas as 9 camadas de isolamento, 3 timeouts,
+> e 8 ameaças do threat model verificadas e conformes.
 
 ---
 
 ## Índice
 
+0. [Auditoria de Segurança do Sandbox](#0-auditoria-de-segurança-do-sandbox)
+   - [0.1 9 Camadas de Isolamento](#01-9-camadas-de-isolamento)
+   - [0.2 3 Camadas de Timeout (Defense in Depth)](#02-3-camadas-de-timeout-defense-in-depth)
+   - [0.3 Threat Model](#03-threat-model)
+   - [0.4 Checklist de Verificação](#04-checklist-de-verificação)
 1. [Matriz de severidade](#1-matriz-de-severidade)
 2. [Incidentes conhecidos e resposta](#2-incidentes-conhecidos-e-resposta)
    - [2.1 Loop infinito não interrompido](#21-loop-infinito-não-interrompido)
@@ -22,6 +30,164 @@
 4. [Pós-incidente](#4-pós-incidente)
 5. [Checklist de recovery](#5-checklist-de-recovery)
 6. [Contatos](#6-contatos)
+
+---
+
+## 0. Auditoria de Segurança do Sandbox
+
+> **Data da auditoria**: 2026-06-17
+> **Escopo**: Verificação das 9 camadas de isolamento Docker, 3 camadas de timeout,
+> threat model e checklist de segurança conforme PRD §11.2 e §11.6.
+> **Arquivos auditados**:
+> - `backend/app/execution.py` (PtyExecutionStrategy)
+> - `backend/app/sandbox.py` (SandboxFactory)
+> - `backend/app/config.py` (Config / timeout defaults)
+> - `backend/app/limits.py` (Rate limiting)
+> - `backend/app/compiler.py` (CompilerService — compile timeout)
+> - `backend/app/validation.py` (Input validation)
+> - `backend/app/ws_handler.py` (WebSocket handler)
+> - `backend/sandbox_config.py` (TimeoutConfig dataclass)
+
+### 0.1 9 Camadas de Isolamento
+
+Cada camada foi verificada no código-fonte do `PtyExecutionStrategy.execute()`
+(`backend/app/execution.py`, linhas 80–97) e na `SandboxFactory.create_container()`
+(`backend/app/sandbox.py`, linhas 68–85).
+
+| # | Camada | Parâmetro Docker | Valor | Arquivo (linha) | Status |
+|---|--------|-----------------|-------|-----------------|--------|
+| 1 | **Container descartável** | `container.remove(force=True)` | Remoção forçada no `finally` | `execution.py:206-210` | ✅ Equivalente a `--rm` |
+| 2 | **Network isolation** | `network_mode` | `"none"` | `execution.py:84` | ✅ |
+| 3 | **Filesystem read-only** | `read_only` | `True` | `execution.py:89` | ✅ |
+| 3a | **tmpfs limitado** | `tmpfs` | `{"/tmp": "size=8m"}` | `execution.py:90` | ✅ |
+| 4 | **Memory limit** | `mem_limit` | `"128m"` | `execution.py:85` | ✅ |
+| 4a | **Memory swap limit** | `memswap_limit` | `"128m"` | `execution.py:86` | ✅ |
+| 5 | **CPU quota** | `cpu_quota` | `50000` (0.5 CPU) | `execution.py:87` | ✅ |
+| 6 | **PIDs limit** | `pids_limit` | `64` | `execution.py:88` | ✅ |
+| 7 | **Usuário não-root** | `user` | `"65534:65534"` (nobody) | `execution.py:91` | ✅ |
+| 8 | **Capabilities drop** | `cap_drop` | `["ALL"]` | `execution.py:92` | ✅ |
+| 9 | **Seccomp profile** | (Docker default) | Perfil padrão do Docker | Implícito — não desabilitado | ✅ |
+
+**Nota sobre camada 1**: O código não passa `auto_remove=True` (equivalente ao flag
+`--rm` do CLI). Em vez disso, o container é removido explicitamente no bloco `finally`
+com `container.remove(force=True)`. O efeito é o mesmo: containers não persistem após
+a execução, mesmo em caso de erro ou timeout.
+
+**Verificação adicional — SandboxFactory**: O `SandboxFactory.create_default_config()`
+(`sandbox.py:60-62`) e `SandboxFactory.create_container()` (`sandbox.py:64-88`)
+espelham exatamente os mesmos parâmetros de segurança, garantindo consistência
+por toda a aplicação. O `SandboxConfig` dataclass (`sandbox.py:20-43`) define os
+valores padrão (`network_mode="none"`, `mem_limit="128m"`, etc.) com defaults
+idênticos aos usados no `PtyExecutionStrategy`.
+
+### 0.2 3 Camadas de Timeout (Defense in Depth)
+
+Conforme PRD §11.3 e `backend/sandbox_config.py`, as três camadas operam em
+sequência para garantir que nenhuma execução ultrapasse os limites:
+
+| # | Camada | Mecanismo | Valor | Arquivo (linha) | Status |
+|---|--------|----------|-------|-----------------|--------|
+| 1 | **Compile timeout** | `subprocess.run(timeout=)` | **15s** | `compiler.py:136,161,174` | ✅ |
+| 2 | **Wall-clock timeout** | `asyncio.wait_for(timeout=)` | **10s** | `execution.py:163` | ✅ |
+| 3 | **Docker hard stop** | `stop_timeout=` | **12s** | `execution.py:96` | ✅ |
+
+**Detalhamento**:
+
+**Camada 1 — Compile timeout (15s)**:
+- Aplica-se a cada estágio individualmente: `simplesc`, `nasm`, `ld`
+- Todos usam `subprocess.run(..., timeout=config.compile_timeout_s)` com lista de args
+- `compiler.py:132-137` — `_run_simplesc()`: timeout na compilação SIMPLES→NASM
+- `compiler.py:157-163` — `_run_nasm()`: timeout na montagem NASM→ELF32
+- `compiler.py:170-176` — `_run_ld()`: timeout na linkagem ELF32→binário
+- O `TimeoutExpired` é capturado em `compiler.py:97-104` e retornado como
+  `CompileResult(success=False, error_message="Compilation timed out...")`
+
+**Camada 2 — Wall-clock timeout (10s)**:
+- Aplica-se ao tempo total de execução do binário no sandbox
+- Implementado via `asyncio.wait_for()` em `execution.py:162-164`
+- Timeout vem de `config.exec_timeout_s` (default: 10, env: `EXEC_TIMEOUT_S`)
+- Ao expirar: SIGTERM → sleep(1) → SIGKILL (`execution.py:166-172`)
+- O `SIGTERM_GRACE_S = 1` (definido em `sandbox_config.py:24`) é respeitado
+
+**Camada 3 — Docker hard stop (12s)**:
+- Rede de segurança: se as camadas 1 e 2 falharem, o Docker força SIGKILL
+- `stop_timeout=12` em `execution.py:96`
+- `DOCKER_STOP_TIMEOUT_S = 12` em `sandbox_config.py:21`
+- Invariante validada: `exec_timeout_s + sigterm_grace_s < docker_stop_timeout_s`
+  (10 + 1 = 11 < 12 ✅) — `sandbox_config.py:72-84`
+
+**Validação de invariante**: A função `validate_timeouts()` em `sandbox_config.py:72-84`
+garante que o soft timeout (10s) + grace period (1s) é estritamente menor que o
+Docker hard stop (12s). Isso evita que o Docker mate o container com SIGKILL antes
+que a aplicação tente o graceful shutdown com SIGTERM.
+
+### 0.3 Threat Model
+
+Cada ameaça identificada no PRD §11.6 foi verificada contra as mitigações
+implementadas no código.
+
+| # | Ameaça | Mitigação(ões) | Implementação | Status |
+|---|--------|---------------|---------------|--------|
+| 1 | **Loop infinito** | Wall-clock timeout 10s + Docker stop_timeout 12s | `execution.py:162-172` (asyncio.wait_for + SIGTERM/SIGKILL) | ✅ |
+| 2 | **Fork bomb** | `pids_limit=64` | `execution.py:88` | ✅ |
+| 3 | **Memória ilimitada** | `mem_limit=128m` + `memswap_limit=128m` | `execution.py:85-86` | ✅ |
+| 4 | **Exfiltração via rede** | `network_mode="none"` | `execution.py:84` | ✅ |
+| 5 | **Escape do container** | user=65534:65534 + cap_drop=ALL + seccomp default + read_only fs | `execution.py:89,91,92` | ✅ |
+| 6 | **Abuso de execuções** | Rate limit 30/min (user) + 120/min (IP) | `limits.py:33-44` (Flask-Limiter) | ✅ |
+| 7 | **JWT roubado** | Expiração curta (Supabase padrão 1h) + validação `sub`/`exp` | `ws_handler.py:172-173` (verify_jwt + extract_user_id) | ✅ |
+| 8 | **Code injection** | `subprocess.run` com lista de args, nunca `shell=True` | `compiler.py:132-136,157-162,170-175` | ✅ |
+
+**Mitigações adicionais verificadas**:
+
+| Medida | Descrição | Local |
+|--------|----------|-------|
+| Validação de entrada | Código limitado a 64 KB, apenas caracteres imprimíveis + ASCII estendido | `validation.py:19-52` |
+| Validação de stdin | Dados stdin limitados a 4096 bytes | `validation.py:54-68` |
+| Rate limit duplo | Limiter por user_id + limiter separado por IP | `limits.py:33-44` |
+| Container cleanup | `container.remove(force=True)` no finally, mesmo em exceções | `execution.py:206-210` |
+| Workdir cleanup | `shutil.rmtree()` no cleanup da conexão | `compiler.py:180-185` |
+| Auth obrigatória | JWT verificado em todo WebSocket connect | `ws_handler.py:153-174` |
+
+### 0.4 Checklist de Verificação
+
+Itens verificados nesta auditoria (2026-06-17):
+
+- [x] **Isolamento**: Todos os 9 parâmetros de segurança do Docker conferidos no `PtyExecutionStrategy.execute()`
+- [x] **Isolamento**: `SandboxFactory` espelha os mesmos parâmetros (consistência via Factory pattern)
+- [x] **Timeout 1**: `subprocess.run(timeout=15)` em todos os 3 estágios de compilação (simplesc, nasm, ld)
+- [x] **Timeout 2**: `asyncio.wait_for(timeout=10)` no executor com sequência SIGTERM → SIGKILL
+- [x] **Timeout 3**: `stop_timeout=12` no container Docker
+- [x] **Invariante**: `exec_timeout_s + sigterm_grace_s < docker_stop_timeout_s` (11 < 12 ✅)
+- [x] **Network**: `network_mode="none"` — sem interface de rede no container
+- [x] **Filesystem**: `read_only=True` + `tmpfs` limitado a 8 MB
+- [x] **Usuário**: `nobody:nobody` (UID 65534, GID 65534)
+- [x] **Capabilities**: `cap_drop=["ALL"]` — todas as capabilities Linux removidas
+- [x] **Seccomp**: Perfil padrão do Docker ativo (não desabilitado no código)
+- [x] **Rate limit**: Flask-Limiter configurado para 30 req/min (user) + 120 req/min (IP)
+- [x] **Code injection**: Nenhuma ocorrência de `shell=True` — todas as chamadas usam lista de args
+- [x] **Validação**: Código validado (tamanho + charset) antes da compilação
+- [x] **Validação**: Stdin validado (tamanho) antes do envio ao container
+- [x] **JWT**: Autenticação obrigatória no WebSocket, verificação de `sub` e `exp`
+- [x] **Cleanup**: Container removido no `finally`, workdir limpo na desconexão
+- [x] **Docker client**: Inicialização lazy (`docker.from_env()`) — não cria conexão até necessário
+
+### 0.5 Recomendações (não bloqueantes)
+
+As seguintes medidas aumentariam a segurança mas não são requeridas para v1:
+
+1. **`--security-opt=no-new-privileges`**: Impedir que processos no container
+   adquiram novos privilégios via setuid/setgid. Não implementado atualmente.
+2. **`--security-opt=seccomp=<profile.json>`**: Perfil seccomp customizado mais
+   restritivo que o default do Docker (ex: bloquear `ptrace`, `mount`).
+3. **`auto_remove=True`**: Usar remoção automática do Docker em vez de remoção
+   manual no `finally` — mais idiomático e reduz chance de leak se o processo
+   Python for morto antes do `finally`.
+4. **gVisor / Firecracker**: Para isolamento mais forte (v2), considerar runtime
+   com kernel em userspace (`runsc`) ou micro-VM (`firecracker-containerd`).
+5. **Rate limit no Nginx**: Adicionar camada de rate limiting no reverse proxy
+   (pré-backend) para proteção adicional contra DDoS.
+6. **Monitoramento**: Adicionar métrica `simples_active_sandboxes` com alerta se
+   > 50 containers simultâneos.
 
 ---
 

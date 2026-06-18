@@ -7,6 +7,9 @@ import SimplesEditor, {
 import TerminalPanel from "@/components/TerminalPanel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type * as Monaco from "monaco-editor";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import type { ImperativePanelHandle } from "react-resizable-panels";
+import MonacoEditor from "@monaco-editor/react";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -16,6 +19,77 @@ interface CompileError {
   message: string;
   phase: string;
 }
+
+// ── Example programs ────────────────────────────────────────────────────────
+
+interface Example {
+  label: string;
+  code: string;
+}
+
+const EXAMPLES: Example[] = [
+  {
+    label: "Hello World",
+    code: `programa hello
+inicio
+  escreva "ola mundo"
+fim`,
+  },
+  {
+    label: "Fatorial",
+    code: `programa fatorial
+inicio
+  inteiro n, fat, i
+  escreva "Digite um numero: "
+  leia n
+  fat <- 1
+  para i de 1 ate n passo 1 faca
+    fat <- fat * i
+  fimpara
+  escreva "Fatorial: "
+  escreval fat
+fim`,
+  },
+  {
+    label: "Fibonacci",
+    code: `programa fibonacci
+inicio
+  inteiro n, a, b, temp, i
+  escreva "Digite n: "
+  leia n
+  a <- 0
+  b <- 1
+  escreva "Fibonacci:"
+  escreval a
+  se n > 1 entao
+    escreval b
+  fimse
+  para i de 2 ate n passo 1 faca
+    temp <- a + b
+    a <- b
+    b <- temp
+    escreval b
+  fimpara
+fim`,
+  },
+  {
+    label: "Tabuada",
+    code: `programa tabuada
+inicio
+  inteiro n, i, res
+  escreva "Digite um numero: "
+  leia n
+  para i de 1 ate 10 passo 1 faca
+    res <- n * i
+    escreva n
+    escreva " x "
+    escreva i
+    escreva " = "
+    escreval res
+  fimpara
+fim`,
+  },
+];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -96,6 +170,8 @@ function IndexRoute() {
   const editorRef = useRef<SimplesEditorHandle>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
+  const nasmPanelRef = useRef<ImperativePanelHandle>(null);
+  const examplesRef = useRef<HTMLDivElement>(null);
 
   // State
   const [code, setCode] = useState("");
@@ -105,6 +181,7 @@ function IndexRoute() {
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
 
   // ── Monaco global ───────────────────────────────────────────────────────
 
@@ -119,6 +196,21 @@ function IndexRoute() {
     const id = setInterval(check, 500);
     return () => clearInterval(id);
   }, []);
+
+  // ── Close examples dropdown on outside click ────────────────────────────
+  useEffect(() => {
+    if (!examplesOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        examplesRef.current &&
+        !examplesRef.current.contains(e.target as Node)
+      ) {
+        setExamplesOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [examplesOpen]);
 
   // ── Editor markers helpers ──────────────────────────────────────────────
 
@@ -457,6 +549,32 @@ function IndexRoute() {
     navigate({ to: "/login" });
   };
 
+  /** Limpar: reseta terminal, NASM, erros e markers */
+  const handleClear = useCallback(() => {
+    setTerminalLines([]);
+    setAsmOutput(null);
+    setCompileErrors([]);
+    clearEditorMarkers();
+  }, [clearEditorMarkers]);
+
+  /** Seleciona um exemplo e carrega no editor */
+  const handleSelectExample = useCallback((example: Example) => {
+    editorRef.current?.setValue(example.code);
+    setCode(example.code);
+    setExamplesOpen(false);
+  }, []);
+
+  /** Double-click no splitter NASM → colapsa/restaura painel NASM */
+  const handleNasmSplitterDoubleClick = useCallback(() => {
+    const panel = nasmPanelRef.current;
+    if (!panel) return;
+    if (panel.isCollapsed()) {
+      panel.expand();
+    } else {
+      panel.collapse();
+    }
+  }, []);
+
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
@@ -478,6 +596,29 @@ function IndexRoute() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* ── Examples dropdown ──────────────────────────────────────── */}
+          <div className="relative" ref={examplesRef}>
+            <button
+              onClick={() => setExamplesOpen((prev) => !prev)}
+              className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-sm rounded transition-colors flex items-center gap-1"
+            >
+              exemplos ▾
+            </button>
+            {examplesOpen && (
+              <div className="absolute right-0 mt-1 w-48 bg-gray-800 border border-gray-700 rounded-md shadow-lg z-50 overflow-hidden">
+                {EXAMPLES.map((ex) => (
+                  <button
+                    key={ex.label}
+                    onClick={() => handleSelectExample(ex)}
+                    className="block w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                  >
+                    {ex.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleCompile}
             disabled={isCompiling}
@@ -493,6 +634,13 @@ function IndexRoute() {
             ■ Parar
           </button>
           <button
+            onClick={handleClear}
+            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm rounded transition-colors"
+            title="Limpar terminal, NASM e erros"
+          >
+            Limpar
+          </button>
+          <button
             onClick={handleLogout}
             className="text-sm text-gray-400 hover:text-white transition-colors"
           >
@@ -503,79 +651,138 @@ function IndexRoute() {
 
       {/* Main content: Editor + NASM (top), Terminal (bottom) */}
       <main className="flex-1 flex flex-col min-h-0">
-        {/* Top row: Editor + NASM */}
-        <div className="flex-1 flex min-h-0">
-          {/* Editor */}
-          <div className="flex-1 border-r border-gray-800 flex flex-col">
-            <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
-              Editor SIMPLES
-              {compileErrors.length > 0 && (
-                <span className="ml-2 text-red-400">
-                  ({compileErrors.length} erro{compileErrors.length > 1 ? "s" : ""})
-                </span>
-              )}
-            </div>
-            <div className="flex-1">
-              <SimplesEditor ref={editorRef} onChange={setCode} />
-            </div>
-          </div>
-
-          {/* NASM Panel */}
-          <div className="w-1/2 flex flex-col">
-            <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
-              NASM x86 (i386)
-              {asmOutput !== null && (
-                <span className="ml-2 text-green-400">
-                  ({asmOutput.length} bytes)
-                </span>
-              )}
-            </div>
-            <div className="flex-1 bg-gray-950 p-4 font-mono text-sm text-gray-400 overflow-auto">
-              {asmOutput ? (
-                <pre className="whitespace-pre-wrap text-green-300/80">
-                  {asmOutput}
-                </pre>
-              ) : compileErrors.length > 0 ? (
-                <div className="text-red-400 space-y-1">
-                  {compileErrors.map((e, i) => (
-                    <div key={i}>
-                      <span className="text-red-300">Erro</span>{" "}
-                      {e.line > 0 && (
-                        <span className="text-gray-500">Linha {e.line}:</span>
-                      )}{" "}
-                      {e.message}
-                    </div>
-                  ))}
+        <PanelGroup direction="vertical" className="flex-1">
+          {/* Top row: Editor + NASM */}
+          <Panel defaultSize={75} minSize={30}>
+            <PanelGroup direction="horizontal">
+              {/* Editor SIMPLES */}
+              <Panel defaultSize={60} minSize={20}>
+                <div className="h-full flex flex-col">
+                  <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
+                    Editor SIMPLES
+                    {compileErrors.length > 0 && (
+                      <span className="ml-2 text-red-400">
+                        ({compileErrors.length} erro{compileErrors.length > 1 ? "s" : ""})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <SimplesEditor ref={editorRef} onChange={setCode} />
+                  </div>
                 </div>
-              ) : (
-                <span className="text-gray-600">
-                  ; Compile seu código SIMPLES para ver o assembly gerado aqui
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+              </Panel>
 
-        {/* Bottom: Terminal */}
-        <div className="h-48 border-t border-gray-800 flex flex-col shrink-0">
-          <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Terminal</span>
-            <span className="text-gray-600">
-              {isExecuting
-                ? "Executando..."
-                : wsConnected
-                  ? "Digite para executar"
-                  : "Desconectado"}
-            </span>
-          </div>
-          <div className="flex-1">
-            <TerminalPanel
-              lines={terminalLines}
-              onInput={handleTerminalInput}
-              interactive={wsConnected}
-            />
-          </div>
-        </div>
+              {/* ── Vertical splitter (Editor ↔ NASM) ────────────────── */}
+              <PanelResizeHandle
+                className="w-1 bg-gray-800 hover:bg-cyan-600 active:bg-cyan-500 transition-colors cursor-col-resize"
+                onDoubleClick={handleNasmSplitterDoubleClick}
+              />
+
+              {/* NASM Panel */}
+              <Panel
+                ref={nasmPanelRef}
+                defaultSize={40}
+                minSize={0}
+                collapsible={true}
+                collapsedSize={0}
+              >
+                <div className="h-full flex flex-col">
+                  <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
+                    NASM x86 (i386)
+                    {asmOutput !== null && (
+                      <span className="ml-2 text-green-400">
+                        ({asmOutput.length} bytes)
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    {asmOutput !== null ? (
+                      <MonacoEditor
+                        value={asmOutput}
+                        language="asm"
+                        theme="vs-dark"
+                        options={{
+                          readOnly: true,
+                          fontSize: 13,
+                          fontFamily:
+                            "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+                          minimap: { enabled: false },
+                          lineNumbers: "off",
+                          renderWhitespace: "none",
+                          scrollBeyondLastLine: false,
+                          wordWrap: "off",
+                          glyphMargin: false,
+                          folding: false,
+                          lineDecorationsWidth: 0,
+                          lineNumbersMinChars: 0,
+                          padding: { top: 8, bottom: 8 },
+                          domReadOnly: true,
+                          contextmenu: false,
+                          overviewRulerLanes: 0,
+                          hideCursorInOverviewRuler: true,
+                          overviewRulerBorder: false,
+                          renderLineHighlight: "none",
+                          occurrencesHighlight: false,
+                          selectionHighlight: false,
+                          matchBrackets: "never",
+                        }}
+                      />
+                    ) : compileErrors.length > 0 ? (
+                      <div className="flex-1 bg-gray-950 p-4 overflow-auto">
+                        <div className="text-red-400 space-y-1 font-mono text-sm">
+                          {compileErrors.map((e, i) => (
+                            <div key={i}>
+                              <span className="text-red-300">Erro</span>{" "}
+                              {e.line > 0 && (
+                                <span className="text-gray-500">
+                                  Linha {e.line}:
+                                </span>
+                              )}{" "}
+                              {e.message}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 bg-gray-950 flex items-center justify-center">
+                        <span className="text-gray-600 text-sm font-mono">
+                          ; Compile seu código SIMPLES para ver o assembly
+                          gerado aqui
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Panel>
+            </PanelGroup>
+          </Panel>
+
+          {/* ── Horizontal splitter (Top ↔ Terminal) ─────────────────── */}
+          <PanelResizeHandle className="h-1 bg-gray-800 hover:bg-cyan-600 active:bg-cyan-500 transition-colors cursor-row-resize" />
+
+          {/* Bottom: Terminal */}
+          <Panel defaultSize={25} minSize={12}>
+            <div className="h-full border-t border-gray-800 flex flex-col">
+              <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                <span>Terminal</span>
+                <span className="text-gray-600">
+                  {isExecuting
+                    ? "Executando..."
+                    : wsConnected
+                      ? "Digite para executar"
+                      : "Desconectado"}
+                </span>
+              </div>
+              <div className="flex-1">
+                <TerminalPanel
+                  lines={terminalLines}
+                  onInput={handleTerminalInput}
+                  interactive={wsConnected}
+                />
+              </div>
+            </div>
+          </Panel>
+        </PanelGroup>
       </main>
     </div>
   );

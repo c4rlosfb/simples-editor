@@ -16,7 +16,7 @@ from app.auth import (
 )
 from app.config import config
 
-from tests.conftest import TEST_JWT_SECRET, TEST_USER_ID, create_test_jwt
+from .conftest import TEST_JWT_SECRET, TEST_USER_ID, create_test_jwt
 
 
 class TestVerifyJWT:

@@ -15,7 +15,7 @@ from app.ws_handler import (
     _safe_send,
 )
 from app.auth import AuthError
-from tests.conftest import create_test_jwt
+from .conftest import create_test_jwt
 
 
 class TestConnectionState:
