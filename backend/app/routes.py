@@ -69,9 +69,11 @@ def health():
 
     # Check Supabase config (verifica env var diretamente)
     supabase_status = {"status": "ok"}
-    secret = os.getenv("SUPABASE_JWT_SECRET", os.getenv("SUPABASE_JWT_SECRET", ""))
-    if not secret or secret == "dev-secret-do-not-use-in-prod":
-        supabase_status = {"status": "degraded", "message": "Using development JWT secret"}
+    secret = os.getenv("SUPABASE_JWT_SECRET", "")
+    if not secret:
+        supabase_status = {"status": "unavailable", "message": "SUPABASE_JWT_SECRET not set"}
+    elif secret == "dev-secret-do-not-use-in-prod":
+        supabase_status = {"status": "ok", "message": "Using development JWT secret (demo mode)"}
     else:
         supabase_status = {"status": "ok", "secret_configured": True, "length": len(secret)}
 

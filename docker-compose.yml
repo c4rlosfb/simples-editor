@@ -18,13 +18,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_SUPABASE_URL=${SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+        - VITE_DEMO_MODE=false
     expose:
       - "80"
-    environment:
-      - VITE_SUPABASE_URL=${SUPABASE_URL:-}
-      - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
-      - VITE_API_BASE=/api
-      - VITE_WS_BASE=/ws
     restart: unless-stopped
     networks:
       - simples-net

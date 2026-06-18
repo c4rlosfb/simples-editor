@@ -93,6 +93,7 @@ class PtyExecutionStrategy(ExecutionStrategy):
                 stdin_open=True,
                 tty=True,
                 detach=True,
+                stop_timeout=12,  # Hard timeout before SIGKILL (PRD §11.3)
             )
 
             sock = container.attach_socket(

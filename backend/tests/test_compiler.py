@@ -176,3 +176,134 @@ class TestCompilerService:
         finally:
             import shutil
             shutil.rmtree(tmp_base, ignore_errors=True)
+
+    @patch("app.compiler.subprocess.run")
+    def test_nasm_error(self, mock_run):
+        """NASM CalledProcessError should be caught."""
+        svc = CompilerService()
+        mock_simplesc = MagicMock()
+        mock_simplesc.returncode = 0
+        mock_simplesc.stdout = ""
+        mock_simplesc.stderr = ""
+
+        nasm_error = subprocess.CalledProcessError(
+            returncode=1, cmd="nasm", output="", stderr="NASM error"
+        )
+        mock_run.side_effect = [mock_simplesc, nasm_error]
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_dir = Path(tmpdir) / "work"
+            test_dir.mkdir(parents=True, exist_ok=True)
+            (test_dir / "programa.simples").write_text(SAMPLE_SIMPLES_CODE)
+            asm_file = test_dir / "programa.asm"
+            asm_file.write_text("section .text\nglobal _start\n_start:\n")
+
+            result = svc.compile(SAMPLE_SIMPLES_CODE, workdir=test_dir)
+            assert result.success is False
+            assert "NASM" in (result.error_message or "")
+
+    @patch("app.compiler.subprocess.run")
+    def test_ld_error(self, mock_run):
+        """LD CalledProcessError should be caught."""
+        svc = CompilerService()
+        mock_simplesc = MagicMock()
+        mock_simplesc.returncode = 0
+        mock_simplesc.stdout = ""
+        mock_simplesc.stderr = ""
+
+        mock_nasm = MagicMock()
+        mock_nasm.returncode = 0
+        mock_nasm.stdout = ""
+        mock_nasm.stderr = ""
+
+        ld_error = subprocess.CalledProcessError(
+            returncode=1, cmd="ld", output="", stderr="Linking failed"
+        )
+        mock_run.side_effect = [mock_simplesc, mock_nasm, ld_error]
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_dir = Path(tmpdir) / "work"
+            test_dir.mkdir(parents=True, exist_ok=True)
+            (test_dir / "programa.simples").write_text(SAMPLE_SIMPLES_CODE)
+            asm_file = test_dir / "programa.asm"
+            asm_file.write_text("section .text\nglobal _start\n_start:\n")
+
+            result = svc.compile(SAMPLE_SIMPLES_CODE, workdir=test_dir)
+            assert result.success is False
+            assert "Linking" in (result.error_message or "")
+
+    @patch("app.compiler.subprocess.run")
+    def test_simplesc_error_no_parsed_errors(self, mock_run):
+        """simplesc returning non-zero but no parseable errors should use exit code message."""
+        svc = CompilerService()
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stdout = ""
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_dir = Path(tmpdir) / "work"
+            test_dir.mkdir(parents=True, exist_ok=True)
+            (test_dir / "programa.simples").write_text("programa t\ninicio\nfim\n")
+
+            result = svc.compile("programa t\ninicio\nfim\n", workdir=test_dir)
+            assert result.success is False
+            assert result.error_message is not None
+
+    @patch("app.compiler.subprocess.run")
+    def test_generic_exception_handling(self, mock_run):
+        """Generic Exception in compile should be caught and reported."""
+        svc = CompilerService()
+        mock_run.side_effect = RuntimeError("Something unexpected")
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_dir = Path(tmpdir) / "work"
+            test_dir.mkdir(parents=True, exist_ok=True)
+            (test_dir / "programa.simples").write_text(SAMPLE_SIMPLES_CODE)
+
+            result = svc.compile(SAMPLE_SIMPLES_CODE, workdir=test_dir)
+            assert result.success is False
+            assert result.error_message is not None
+            assert "Unexpected" in result.error_message
+
+    @patch("app.compiler.shutil.which")
+    def test_compile_simples_mock_fallback(self, mock_which):
+        """compile_simples should return mock result when simplesc not available."""
+        from app.compiler import compile_simples
+        mock_which.return_value = None  # simplesc not found
+
+        result = compile_simples("programa t\ninicio\n  escreva 1\nfim\n")
+        assert result.success is True
+        assert result.asm_source is not None
+        assert "; SIMPLES → NASM (mock" in result.asm_source
+
+    @patch("app.compiler.CompilerService.compile")
+    @patch("app.compiler.shutil.which")
+    def test_compile_simples_real(self, mock_which, mock_compile):
+        """compile_simples should use real compiler when available."""
+        from app.compiler import compile_simples, CompileResult
+        mock_which.return_value = "/usr/bin/simplesc"
+        expected = CompileResult(success=True, asm_source="real asm")
+        mock_compile.return_value = expected
+
+        result = compile_simples("programa t\ninicio\nfim\n")
+        assert result.success is True
+        assert result.asm_source == "real asm"
+
+    def test_cleanup_exception_handling(self):
+        """cleanup should not raise on permission errors."""
+        svc = CompilerService()
+        import tempfile
+        tmpdir = Path(tempfile.mkdtemp())
+        test_dir = tmpdir / "work"
+        test_dir.mkdir(parents=True, exist_ok=True)
+
+        with patch("app.compiler.shutil.rmtree", side_effect=Exception("Perm denied")):
+            svc.cleanup(test_dir)  # Should not raise
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)

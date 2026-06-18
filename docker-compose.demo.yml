@@ -31,14 +31,35 @@ services:
       - "5000"
     environment:
       - SUPABASE_URL=https://hdrkvdlalhdzesgbwbta.supabase.co
-      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhkcmt2ZGxhbGhkemVzZ2J3YnRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5OTI1MTYsImV4cCI6MjA5NTU2ODUxNn0.Meus8nbZ8smfujB1Kih96sGltn6D4scLBasNmWyI2y0
-      - SUPABASE_JWT_SECRET=wSe3ySdizWnHox6yvkVgqQ3GWpfdvVnjAA4DqdB1TgCiixOR67q+SsRxWyx+XiFjYnBPgafgZ3l6A+2/S9XqXQ==
+      - SUPABASE_ANON_KEY=eyJhbG...I2y0
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-dev-secret-do-not-use-in-prod}
       - FLASK_ENV=development
       - LOG_LEVEL=INFO
+      - SANDBOX_IMAGE=simples-runner:latest
+      - EXEC_TIMEOUT_S=10
+      - COMPILE_TIMEOUT_S=15
+      - MAX_CODE_KB=64
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - simples_tmp:/tmp/simples
+    depends_on:
+      runner_image_build:
+        condition: service_completed_successfully
     networks:
       - simples-net
+
+  runner_image_build:
+    image: simples-runner:latest
+    build:
+      context: ./runner
+      dockerfile: Dockerfile
+    command: ["true"]
+    restart: "no"
+    networks:
+      - simples-net
+
+volumes:
+  simples_tmp:
 
 networks:
   simples-net:
