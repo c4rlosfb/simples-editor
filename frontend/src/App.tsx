@@ -478,21 +478,30 @@ function App() {
   // Auth gate: show login if not authenticated (skip in demo mode)
   if (!authChecked) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950">
-        <div className="text-cyan-400 text-lg animate-pulse">Carregando...</div>
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0a0f]">
+        <div className="flex flex-col items-center gap-4">
+          <span className="text-4xl font-mono font-bold text-cyan-400">&lt;/&gt;</span>
+          <div className="text-cyan-400/70 text-lg animate-pulse">Carregando...</div>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
-        <div className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0a0f] via-[#0f1724] to-[#0a1220]">
+        <div className="w-full max-w-md px-4">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-cyan-400">Simples Editor</h1>
+            <span className="text-5xl font-mono font-bold text-cyan-400">&lt;/&gt;</span>
+            <h1 className="text-3xl font-bold text-white mt-3">Simples Editor</h1>
             <p className="text-gray-400 mt-2">
               IDE web para a linguagem SIMPLES
             </p>
+            <div className="flex items-center justify-center gap-3 mt-3">
+              <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">27 keywords</span>
+              <span className="text-xs px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">NASM x86</span>
+              <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">Docker</span>
+            </div>
           </div>
           <LoginPage />
         </div>
@@ -501,15 +510,18 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
+    <div className="flex flex-col h-screen bg-[#0a0a0f] text-gray-100">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm px-4 py-2 flex items-center justify-between shrink-0">
+      <header className="border-b border-cyan-500/10 bg-gradient-to-r from-[#0d1117] via-[#0f1724] to-[#0d1117] px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-cyan-400">Simples Editor</h1>
-          <span className="text-xs text-gray-600">|</span>
-          <span className="text-xs text-gray-500">SIMPLES → NASM → ELF i386</span>
+          <span className="text-xl font-mono font-bold text-cyan-400">&lt;/&gt;</span>
+          <h1 className="text-base font-semibold text-white tracking-tight">Simples Editor</h1>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400/70 border border-cyan-500/20">SIMPLES → NASM → ELF i386</span>
           {wsConnected && (
-            <span className="text-xs text-green-500" title="WebSocket conectado">●</span>
+            <span className="relative flex h-2 w-2" title="WebSocket conectado">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
           )}
         </div>
 
@@ -518,8 +530,9 @@ function App() {
           <div className="relative" ref={examplesRef}>
             <button
               onClick={() => setExamplesOpen((p) => !p)}
-              className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-sm rounded transition-colors flex items-center gap-1"
+              className="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-sm font-medium rounded-lg transition-all duration-200 border border-white/5 hover:border-white/10 flex items-center gap-1.5"
             >
+              <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
               exemplos ▾
             </button>
             {examplesOpen && (
@@ -540,7 +553,7 @@ function App() {
           <button
             onClick={handleRun}
             disabled={isCompiling}
-            className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm rounded transition-colors"
+            className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 active:scale-95"
           >
             {isCompiling ? "⏳ Compilando..." : "▶ Compilar"}
           </button>
@@ -548,14 +561,14 @@ function App() {
           <button
             onClick={handleStop}
             disabled={!isExecuting}
-            className="px-3 py-1 bg-red-800 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-sm rounded transition-colors"
+            className="px-4 py-1.5 bg-red-600/80 hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-all duration-200 active:scale-95"
           >
             ■ Parar
           </button>
 
           <button
             onClick={handleClear}
-            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm rounded transition-colors"
+            className="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-sm font-medium rounded-lg transition-all duration-200 border border-white/5 hover:border-white/10 active:scale-95"
             title="Limpar terminal, NASM e erros"
           >
             Limpar
@@ -581,7 +594,7 @@ function App() {
               {/* Editor SIMPLES */}
               <Panel defaultSize={60} minSize={20}>
                 <div className="h-full flex flex-col">
-                  <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 bg-[#0d1117] border-b border-cyan-500/10 text-[11px] text-gray-500 uppercase tracking-wider flex items-center justify-between">
                     Editor SIMPLES
                     {compileErrors.length > 0 && (
                       <span className="ml-2 text-red-400">
@@ -608,7 +621,7 @@ function App() {
 
               {/* Vertical splitter */}
               <PanelResizeHandle
-                className="w-1 bg-gray-800 hover:bg-cyan-600 active:bg-cyan-500 transition-colors cursor-col-resize"
+                className="w-[3px] bg-cyan-500/10 hover:bg-cyan-500/40 active:bg-cyan-500/60 transition-colors duration-200 cursor-col-resize rounded-full mx-0.5"
                 onDoubleClick={handleNasmSplitterDoubleClick}
               />
 
@@ -621,8 +634,8 @@ function App() {
                 collapsedSize={0}
               >
                 <div className="h-full flex flex-col">
-                  <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
-                    NASM x86 (i386)
+                  <div className="px-3 py-1.5 bg-[#0d1117] border-b border-purple-500/10 text-[11px] text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>NASM x86 (i386)</span>
                     {asmOutput !== null && (
                       <span className="ml-2 text-green-400">({asmOutput.length} bytes)</span>
                     )}
@@ -684,13 +697,16 @@ function App() {
           </Panel>
 
           {/* Horizontal splitter */}
-          <PanelResizeHandle className="h-1 bg-gray-800 hover:bg-cyan-600 active:bg-cyan-500 transition-colors cursor-row-resize" />
+          <PanelResizeHandle className="h-[3px] bg-cyan-500/10 hover:bg-cyan-500/40 active:bg-cyan-500/60 transition-colors duration-200 cursor-row-resize rounded-full my-0.5" />
 
           {/* Bottom: Terminal */}
           <Panel defaultSize={25} minSize={12}>
             <div className="h-full border-t border-gray-800 flex flex-col">
-              <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                <span>Terminal</span>
+              <div className="px-3 py-1.5 bg-[#0d1117] border-b border-green-500/10 text-[11px] text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500/60"></span>
+                  Terminal
+                </span>
                 <span className="text-gray-600">
                   {isExecuting ? "Executando..." : wsConnected ? "Conectado" : "Desconectado"}
                 </span>
