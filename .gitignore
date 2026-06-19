@@ -31,3 +31,4 @@ terraform.tfvars
 # OS
 Thumbs.db
 .DS_Store
+.env.oci
