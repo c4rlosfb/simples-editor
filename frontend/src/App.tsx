@@ -12,6 +12,8 @@ import {
   SIMPLES_EDITOR_OPTIONS,
 } from "./lib/simples-language";
 import type * as Monaco from "monaco-editor";
+import { supabase } from "./lib/supabase";
+import { LoginPage } from "./components/LoginPage";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -134,6 +136,28 @@ function App() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
+
+  // ── Auth State ──────────────────────────────────────────────────────────
+
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    import.meta.env.VITE_DEMO_MODE === "true"
+  );
+
+  useEffect(() => {
+    if (import.meta.env.VITE_DEMO_MODE === "true") {
+      setAuthChecked(true);
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAuthenticated(!!data.session);
+      setAuthChecked(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // ── Monaco Language Registration ───────────────────────────────────────
 
@@ -418,6 +442,11 @@ function App() {
     setExamplesOpen(false);
   }, []);
 
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    setIsAuthenticated(false);
+  }, []);
+
   // Close examples dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -441,6 +470,31 @@ function App() {
   }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────
+
+  // Auth gate: show login if not authenticated (skip in demo mode)
+  if (!authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+        <div className="text-cyan-400 text-lg animate-pulse">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-cyan-400">Simples Editor</h1>
+            <p className="text-gray-400 mt-2">
+              IDE web para a linguagem SIMPLES
+            </p>
+          </div>
+          <LoginPage />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
@@ -502,6 +556,15 @@ function App() {
           >
             Limpar
           </button>
+
+          {import.meta.env.VITE_DEMO_MODE !== "true" && (
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Sair
+            </button>
+          )}
         </div>
       </header>
 
