@@ -283,7 +283,18 @@ function App() {
     let mounted = true;
 
     async function connect() {
-      const token = await createDemoToken();
+      // Use Supabase session token in production, demo token in dev mode
+      let token: string;
+      if (import.meta.env.VITE_DEMO_MODE === "true") {
+        token = await createDemoToken();
+      } else {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || "";
+        if (!token) {
+          console.warn("[WS] Sem token Supabase — WebSocket não conectará");
+          return;
+        }
+      }
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws/run?token=${token}`;
 
