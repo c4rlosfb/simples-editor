@@ -24,7 +24,10 @@ class AuthError(Exception):
 
 
 def verify_jwt(token: str) -> dict:
-    """Validate a Supabase JWT and return its payload.
+    """Validate a JWT and return its payload.
+
+    Tries the configured Supabase JWT secret first, then falls back to
+    the development secret for demo mode compatibility.
 
     Args:
         token: The raw JWT string (Bearer <token>).
@@ -35,18 +38,27 @@ def verify_jwt(token: str) -> dict:
     Raises:
         AuthError: If the token is invalid, expired, or malformed.
     """
-    try:
-        payload = jwt.decode(
-            token,
-            config.supabase_jwt_secret,
-            algorithms=["HS256"],
-            options={"require": ["sub", "exp"]},
-        )
-        return payload
-    except jwt.ExpiredSignatureError:
+    secrets_to_try = [config.supabase_jwt_secret]
+    dev_secret = "dev-secret-do-not-use-in-prod"
+    if config.supabase_jwt_secret != dev_secret:
+        secrets_to_try.append(dev_secret)
+
+    last_error = None
+    for secret in secrets_to_try:
+        try:
+            payload = jwt.decode(
+                token,
+                secret,
+                algorithms=["HS256"],
+                options={"require": ["sub", "exp"]},
+            )
+            return payload
+        except jwt.InvalidTokenError as e:
+            last_error = e
+
+    if isinstance(last_error, jwt.ExpiredSignatureError):
         raise AuthError("Token has expired", 401)
-    except jwt.InvalidTokenError as e:
-        raise AuthError(f"Invalid token: {e}", 401)
+    raise AuthError(f"Invalid token: {last_error}", 401)
 
 
 def extract_user_id(payload: dict) -> str:

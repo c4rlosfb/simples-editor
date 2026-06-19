@@ -81,7 +81,6 @@ class SandboxFactory:
             stdin_open=cfg.stdin_open,
             tty=cfg.tty,
             detach=cfg.detach,
-            stop_timeout=cfg.stop_timeout,
         )
 
         logger.info("sandbox_created: container_id=%s", container.short_id)

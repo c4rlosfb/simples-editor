@@ -12,8 +12,6 @@ import {
   SIMPLES_EDITOR_OPTIONS,
 } from "./lib/simples-language";
 import type * as Monaco from "monaco-editor";
-import { supabase } from "./lib/supabase";
-import { LoginPage } from "./components/LoginPage";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -127,37 +125,19 @@ function App() {
   const fitRef = useRef<FitAddon | null>(null);
   const examplesRef = useRef<HTMLDivElement>(null);
 
+  // Refs para evitar stale closures nos callbacks do terminal/WebSocket
+  const handleRunRef = useRef<() => void>(() => {});
+  const isExecutingRef = useRef(false);
+  const handleWsMessageRef = useRef<(msg: Record<string, unknown>) => void>(() => {});
+
   // State
   const [code, setCode] = useState(DEFAULT_CODE);
   const [asmOutput, setAsmOutput] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileErrors, setCompileErrors] = useState<CompileError[]>([]);
-  const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
-
-  // ── Auth State ──────────────────────────────────────────────────────────
-
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    import.meta.env.VITE_DEMO_MODE === "true"
-  );
-
-  useEffect(() => {
-    if (import.meta.env.VITE_DEMO_MODE === "true") {
-      setAuthChecked(true);
-      return;
-    }
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session);
-      setAuthChecked(true);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   // ── Monaco Language Registration ───────────────────────────────────────
 
@@ -225,12 +205,23 @@ function App() {
     termRef.current = term;
     fitRef.current = fit;
 
-    // Banner
-    term.writeln("\x1b[1;36m┌─────────────────────────────────────────┐\x1b[0m");
-    term.writeln("\x1b[1;36m│\x1b[0m  \x1b[1;33mSimples Editor — Terminal Interativo\x1b[0m     \x1b[1;36m│\x1b[0m");
-    term.writeln("\x1b[1;36m│\x1b[0m  Digite 'run' ou pressione ▶ Compilar      \x1b[1;36m│\x1b[0m");
-    term.writeln("\x1b[1;36m└─────────────────────────────────────────┘\x1b[0m");
-    term.write("\r\n$ ");
+    // Banner inicial (bordas alinhadas, 44 colunas)
+    const W = 44;
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+    const boxTop = "\x1b[1;36m┌" + "─".repeat(W-2) + "┐\x1b[0m";
+    const boxBot = "\x1b[1;36m└" + "─".repeat(W-2) + "┘\x1b[0m";
+    const pad = (text: string) => {
+      const visible = stripAnsi(text);
+      const inner = W - 2;
+      const padding = Math.max(0, inner - visible.length - 1);
+      return "\x1b[1;36m│\x1b[0m " + text + " ".repeat(padding) + "\x1b[1;36m│\x1b[0m";
+    };
+
+    term.writeln(boxTop);
+    term.writeln(pad("\x1b[1;33mSimples Editor — Terminal Interativo\x1b[0m"));
+    term.writeln(pad("Aguardando conexão com o servidor..."));
+    term.writeln(boxBot);
+    term.write("\x1b[?25l");
 
     let inputBuffer = "";
 
@@ -239,9 +230,9 @@ function App() {
         const line = inputBuffer;
         term.write("\r\n");
         if (line.trim() === "run") {
-          handleRun();
+          handleRunRef.current();
         } else if (wsRef.current?.readyState === WebSocket.OPEN) {
-          if (isExecuting) {
+          if (isExecutingRef.current) {
             wsRef.current.send(JSON.stringify({ type: "stdin", data: line + "\n" }));
           } else {
             term.writeln("\x1b[1;33mExecute com 'run' ou ▶ Compilar\x1b[0m");
@@ -283,18 +274,7 @@ function App() {
     let mounted = true;
 
     async function connect() {
-      // Use Supabase session token in production, demo token in dev mode
-      let token: string;
-      if (import.meta.env.VITE_DEMO_MODE === "true") {
-        token = await createDemoToken();
-      } else {
-        const { data } = await supabase.auth.getSession();
-        token = data.session?.access_token || "";
-        if (!token) {
-          console.warn("[WS] Sem token Supabase — WebSocket não conectará");
-          return;
-        }
-      }
+      const token = await createDemoToken();
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${protocol}//${window.location.host}/ws/run?token=${token}`;
 
@@ -304,14 +284,20 @@ function App() {
       ws.onopen = () => {
         if (!mounted) return;
         setWsConnected(true);
-        termRef.current?.writeln("\x1b[1;32m✓ Conectado ao servidor de execução\x1b[0m");
+        // Limpa banner de "Aguardando" e mostra prompt ativo
+        const term = termRef.current;
+        if (term) {
+          term.write("\x1b[?25h"); // mostra cursor
+          term.writeln("\x1b[1;32m✓ Conectado ao servidor\x1b[0m");
+          term.write("$ ");
+        }
       };
 
       ws.onmessage = (event) => {
         if (!mounted) return;
         try {
           const msg = JSON.parse(event.data as string);
-          handleWsMessage(msg);
+          handleWsMessageRef.current(msg);
         } catch { /* ignore */ }
       };
 
@@ -319,14 +305,24 @@ function App() {
         if (!mounted) return;
         setWsConnected(false);
         setIsExecuting(false);
+        const term = termRef.current;
+        if (term) {
+          term.write("\x1b[?25l"); // esconde cursor
+          term.writeln("\x1b[1;33m⏼ Desconectado do servidor\x1b[0m");
+        }
+      };
+      ws.onerror = () => {
+        if (!mounted) return;
+        const term = termRef.current;
+        if (term) {
+          term.writeln("\x1b[1;31m✗ Erro de conexão com servidor\x1b[0m");
+        }
       };
     }
 
     connect();
     return () => { mounted = false; ws?.close(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── WebSocket Message Handler ───────────────────────────────────────────
 
   const handleWsMessage = useCallback((msg: Record<string, unknown>) => {
     const type = msg.type as string;
@@ -338,7 +334,6 @@ function App() {
 
       case "asm_generated":
         setAsmOutput((msg.asm as string) || "");
-        setIsCompiling(false);
         termRef.current?.writeln("\x1b[1;32m✓ Compilação concluída (NASM gerado)\x1b[0m");
         break;
 
@@ -356,7 +351,6 @@ function App() {
         break;
 
       case "compile_error": {
-        setIsCompiling(false);
         const rawErrors = msg.errors as CompileError[] | undefined;
         const errors: CompileError[] = rawErrors?.length ? rawErrors : [{
           line: (msg.line as number) || 0,
@@ -386,6 +380,14 @@ function App() {
     }
   }, [setEditorMarkers]);
 
+  // Sincroniza refs para evitar stale closures
+  handleWsMessageRef.current = handleWsMessage;
+
+  // Sincroniza isExecuting com a ref (usada no terminal e WebSocket)
+  useEffect(() => {
+    isExecutingRef.current = isExecuting;
+  }, [isExecuting]);
+
   // ── Actions ─────────────────────────────────────────────────────────────
 
   const handleRun = useCallback(() => {
@@ -397,48 +399,49 @@ function App() {
     setCompileErrors([]);
     clearEditorMarkers();
 
-    // Send via WebSocket — o handler WS compila, retorna NASM (asm_generated)
-    // e executa em uma única requisição. Evita compilar DUAS vezes.
-    const ws = wsRef.current;
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "compile_and_run", code: currentCode }));
-    } else {
-      // Fallback: WebSocket não conectado — compila via REST (somente NASM)
-      fetch("/api/compile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: currentCode }),
-      })
-        .then((res) => res.json())
-        .then((data: { success: boolean; asm?: string; errors?: CompileError[] }) => {
-          if (data.success) {
-            setAsmOutput(data.asm || "");
-          } else {
-            const errors = data.errors?.length ? data.errors : [{
-              line: 0, column: 0, message: "Erro de compilação", phase: "compiler",
-            }];
-            setCompileErrors(errors);
-            setEditorMarkers(errors);
+    // First, compile via REST
+    fetch("/api/compile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: currentCode }),
+    })
+      .then((res) => res.json())
+      .then((data: { success: boolean; asm?: string; errors?: CompileError[] }) => {
+        if (data.success) {
+          setAsmOutput(data.asm || "");
+          // Now execute via WebSocket
+          const ws = wsRef.current;
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "compile_and_run", code: currentCode }));
           }
-        })
-        .catch((e) => {
-          setCompileErrors([{
-            line: 0, column: 0,
-            message: `Erro de rede: ${e instanceof Error ? e.message : String(e)}`,
-            phase: "network",
-          }]);
-        })
-        .finally(() => setIsCompiling(false));
-    }
+        } else {
+          const errors = data.errors?.length ? data.errors : [{
+            line: 0, column: 0, message: "Erro de compilação", phase: "compiler",
+          }];
+          setCompileErrors(errors);
+          setEditorMarkers(errors);
+        }
+      })
+      .catch((e) => {
+        setCompileErrors([{
+          line: 0, column: 0,
+          message: `Erro de rede: ${e instanceof Error ? e.message : String(e)}`,
+          phase: "network",
+        }]);
+      })
+      .finally(() => setIsCompiling(false));
   }, [code, clearEditorMarkers, setEditorMarkers]);
+
+  // Sincroniza ref para evitar stale closure no terminal
+  handleRunRef.current = handleRun;
 
   const handleStop = useCallback(() => {
     const ws = wsRef.current;
-    if (ws?.readyState === WebSocket.OPEN && isExecuting) {
+    if (ws?.readyState === WebSocket.OPEN && isExecutingRef.current) {
       ws.send(JSON.stringify({ type: "stop" }));
       termRef.current?.writeln("\x1b[1;33m⏹ Parando execução...\x1b[0m");
     }
-  }, [isExecuting]);
+  }, []);
 
   const handleClear = useCallback(() => {
     termRef.current?.clear();
@@ -455,11 +458,6 @@ function App() {
     editorRef.current?.setValue(example.code);
     setCode(example.code);
     setExamplesOpen(false);
-  }, []);
-
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setIsAuthenticated(false);
   }, []);
 
   // Close examples dropdown on outside click
@@ -486,53 +484,16 @@ function App() {
 
   // ── Render ──────────────────────────────────────────────────────────────
 
-  // Auth gate: show login if not authenticated (skip in demo mode)
-  if (!authChecked) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0a0a0f]">
-        <div className="flex flex-col items-center gap-4">
-          <span className="text-4xl font-mono font-bold text-cyan-400">&lt;/&gt;</span>
-          <div className="text-cyan-400/70 text-lg animate-pulse">Carregando...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0a0f] via-[#0f1724] to-[#0a1220]">
-        <div className="w-full max-w-md px-4">
-          <div className="text-center mb-8">
-            <span className="text-5xl font-mono font-bold text-cyan-400">&lt;/&gt;</span>
-            <h1 className="text-3xl font-bold text-white mt-3">Simples Editor</h1>
-            <p className="text-gray-400 mt-2">
-              IDE web para a linguagem SIMPLES
-            </p>
-            <div className="flex items-center justify-center gap-3 mt-3">
-              <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">27 keywords</span>
-              <span className="text-xs px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">NASM x86</span>
-              <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">Docker</span>
-            </div>
-          </div>
-          <LoginPage />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-screen bg-[#0a0a0f] text-gray-100">
+    <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
       {/* Header */}
-      <header className="border-b border-cyan-500/10 bg-gradient-to-r from-[#0d1117] via-[#0f1724] to-[#0d1117] px-4 py-2 flex items-center justify-between shrink-0">
+      <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-mono font-bold text-cyan-400">&lt;/&gt;</span>
-          <h1 className="text-base font-semibold text-white tracking-tight">Simples Editor</h1>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400/70 border border-cyan-500/20">SIMPLES → NASM → ELF i386</span>
+          <h1 className="text-lg font-semibold text-cyan-400">Simples Editor</h1>
+          <span className="text-xs text-gray-600">|</span>
+          <span className="text-xs text-gray-500">SIMPLES → NASM → ELF i386</span>
           {wsConnected && (
-            <span className="relative flex h-2 w-2" title="WebSocket conectado">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
+            <span className="text-xs text-green-500" title="WebSocket conectado">●</span>
           )}
         </div>
 
@@ -541,9 +502,8 @@ function App() {
           <div className="relative" ref={examplesRef}>
             <button
               onClick={() => setExamplesOpen((p) => !p)}
-              className="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-sm font-medium rounded-lg transition-all duration-200 border border-white/5 hover:border-white/10 flex items-center gap-1.5"
+              className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-sm rounded transition-colors flex items-center gap-1"
             >
-              <svg className="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
               exemplos ▾
             </button>
             {examplesOpen && (
@@ -564,7 +524,7 @@ function App() {
           <button
             onClick={handleRun}
             disabled={isCompiling}
-            className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 active:scale-95"
+            className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm rounded transition-colors"
           >
             {isCompiling ? "⏳ Compilando..." : "▶ Compilar"}
           </button>
@@ -572,27 +532,18 @@ function App() {
           <button
             onClick={handleStop}
             disabled={!isExecuting}
-            className="px-4 py-1.5 bg-red-600/80 hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-all duration-200 active:scale-95"
+            className="px-3 py-1 bg-red-900 hover:bg-red-800 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed text-sm rounded transition-colors text-red-200"
           >
             ■ Parar
           </button>
 
           <button
             onClick={handleClear}
-            className="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-sm font-medium rounded-lg transition-all duration-200 border border-white/5 hover:border-white/10 active:scale-95"
+            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-sm rounded transition-colors"
             title="Limpar terminal, NASM e erros"
           >
             Limpar
           </button>
-
-          {import.meta.env.VITE_DEMO_MODE !== "true" && (
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              Sair
-            </button>
-          )}
         </div>
       </header>
 
@@ -605,7 +556,7 @@ function App() {
               {/* Editor SIMPLES */}
               <Panel defaultSize={60} minSize={20}>
                 <div className="h-full flex flex-col">
-                  <div className="px-3 py-1.5 bg-[#0d1117] border-b border-cyan-500/10 text-[11px] text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                  <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
                     Editor SIMPLES
                     {compileErrors.length > 0 && (
                       <span className="ml-2 text-red-400">
@@ -632,7 +583,7 @@ function App() {
 
               {/* Vertical splitter */}
               <PanelResizeHandle
-                className="w-[3px] bg-cyan-500/10 hover:bg-cyan-500/40 active:bg-cyan-500/60 transition-colors duration-200 cursor-col-resize rounded-full mx-0.5"
+                className="w-1 bg-gray-800 hover:bg-cyan-600 active:bg-cyan-500 transition-colors cursor-col-resize"
                 onDoubleClick={handleNasmSplitterDoubleClick}
               />
 
@@ -645,8 +596,8 @@ function App() {
                 collapsedSize={0}
               >
                 <div className="h-full flex flex-col">
-                  <div className="px-3 py-1.5 bg-[#0d1117] border-b border-purple-500/10 text-[11px] text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                    <span>NASM x86 (i386)</span>
+                  <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider">
+                    NASM x86 (i386)
                     {asmOutput !== null && (
                       <span className="ml-2 text-green-400">({asmOutput.length} bytes)</span>
                     )}
@@ -708,21 +659,18 @@ function App() {
           </Panel>
 
           {/* Horizontal splitter */}
-          <PanelResizeHandle className="h-[3px] bg-cyan-500/10 hover:bg-cyan-500/40 active:bg-cyan-500/60 transition-colors duration-200 cursor-row-resize rounded-full my-0.5" />
+          <PanelResizeHandle className="h-1 bg-gray-800 hover:bg-cyan-600 active:bg-cyan-500 transition-colors cursor-row-resize" />
 
           {/* Bottom: Terminal */}
           <Panel defaultSize={25} minSize={12}>
             <div className="h-full border-t border-gray-800 flex flex-col">
-              <div className="px-3 py-1.5 bg-[#0d1117] border-b border-green-500/10 text-[11px] text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500/60"></span>
-                  Terminal
-                </span>
-                <span className="text-gray-600">
+              <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                <span>Terminal</span>
+                <span className={wsConnected ? "text-green-400" : "text-yellow-500"}>
                   {isExecuting ? "Executando..." : wsConnected ? "Conectado" : "Desconectado"}
                 </span>
               </div>
-              <div ref={terminalRef} className="flex-1 min-h-[120px]" style={{ background: "#1e1e2e" }} />
+              <div ref={terminalRef} className="flex-1" style={{ background: "#1e1e2e" }} />
             </div>
           </Panel>
         </PanelGroup>

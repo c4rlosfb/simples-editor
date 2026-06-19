@@ -56,36 +56,15 @@
 
 ## Sprint 6
 
-- [x] feat(frontend): add playwright e2e coverage for core flow
-- [x] feat(backend): reach seventy percent test coverage
-- [x] feat(docs): complete readme with badges and screenshots
-- [x] feat(docs): produce demo video asset
-- [x] feat(devops): deploy simples editor on oracle cloud ampere a1
-- [x] feat(devops): configure custom domain for optional deployment
-- [x] feat(docs): prepare final presentation materials
+- [ ] feat(frontend): add playwright e2e coverage for core flow
+- [ ] feat(backend): reach seventy percent test coverage
+- [ ] feat(docs): complete readme with gifs and screenshots
+- [ ] feat(docs): produce demo video asset
+- [ ] feat(devops): deploy simples editor on oracle cloud ampere a1
+- [ ] feat(devops): configure custom domain for optional deployment
+- [ ] feat(docs): prepare final presentation materials
 - [x] feat(docs): capture team retrospective
-
-### Extra — Pós-Sprint 6
-
-- [x] feat(devops): enable HTTPS via Let's Encrypt + nip.io domain (#49)
-- [x] feat(frontend): add auth gate + Supabase login page to App.tsx (#102)
-- [x] feat(frontend): deduplicate compilation (REST+WS → WS-only) for 2x speed (#103)
-- [x] fix(frontend): remove dead TanStack Start infra (8 files, −179 linhas) (#104)
-- [x] fix(devops): correct Supabase anon key in OCI .env (Hermes censorship bypass)
-- [x] fix(frontend): LoginPage import broken build (src/lib → ../lib) (#104)
-- [x] fix(backend): unify PtyExecutionStrategy — remove dead backend/execution/ module (#101)
 
 ---
 
-**Resumo:** 53/53 itens concluídos (100%). 🎉 Todos os 6 sprints finalizados + extras pós-entrega.
-
-**Deploy público:** https://simples.163.176.220.47.nip.io
-
-| Métrica | Valor |
-|---|---|
-| Issues fechadas | 53 |
-| PRs mergeados | 30+ |
-| Testes backend | 178 |
-| Cobertura | ~79% |
-| Docker containers | 3 (nginx + frontend + backend) |
-| Linhas de código | ~10k (frontend + backend + docs + terraform) |
+**Resumo:** 45/53 itens concluídos (85%). Sprints 1-5 integralmente concluídos. Sprint 6 com deploy (#48, #49) bloqueado por credenciais Oracle Cloud e testes E2E/capturas pendentes.
