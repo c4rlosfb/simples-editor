@@ -1,63 +1,75 @@
 # Configuração de Domínio Próprio
 
-> **Nota:** Este é um guia de referência para ser usado **após o deploy da VM na Oracle Cloud** (ver `terraform/README.md` e PRD §14.7). As instruções abaixo pressupõem que a instância OCI já está provisionada e a aplicação está rodando.
+> **Status:** ✅ Configurado e funcionando — 19/Jun/2026
 
-Para habilitar a presença pública do **Simples Editor** em um domínio próprio (ex: `simples.seu-dominio.edu.br`), siga as instruções abaixo.
+## Domínio
 
-## Pré-requisitos
+| Item | Valor |
+|---|---|
+| **Domínio** | `simples.163.176.220.47.nip.io` |
+| **IP OCI** | `163.176.220.47` |
+| **HTTPS** | Let's Encrypt (certbot) |
+| **Expira cert** | 16/Set/2026 (renovação automática) |
+| **Email** | carlos.barbosa@alunos.ifsuldeminas.edu.br |
 
-- [ ] VM OCI Ampere A1 provisionada (via Terraform em `terraform/`)
-- [ ] Aplicação rodando na VM (`docker compose up -d`)
-- [ ] Domínio registrado com acesso ao painel DNS
+## URLs de acesso
 
-## 1. Apontamento de DNS
+| URL | Descrição |
+|---|---|
+| `https://simples.163.176.220.47.nip.io` | IDE completa |
+| `https://simples.163.176.220.47.nip.io/login` | Login Supabase |
+| `https://simples.163.176.220.47.nip.io/api/health` | Health check |
 
-Acesse o painel do provedor de DNS do seu domínio e crie um registro do tipo **A**:
-- **Nome/Host**: `simples` (ou o subdomínio desejado)
-- **Tipo**: `A`
-- **Valor**: `<IP_PUBLICO_DA_OCI>` (substitua pelo IP da sua instância na Oracle Cloud)
-- **TTL**: `Auto` ou `3600`
+> HTTP (porta 80) redireciona automaticamente para HTTPS.
 
-Aguarde a propagação do DNS (pode levar alguns minutos a algumas horas). Verifique se o domínio já responde ao IP usando ferramentas como `ping` ou `nslookup`.
+## Como foi configurado
 
-## 2. Configuração do Nginx e Let's Encrypt (TLS)
+### 1. DNS (nip.io)
+`nip.io` é um serviço gratuito de DNS wildcard — qualquer subdomínio no formato `<nome>.<IP>.nip.io` resolve automaticamente para o IP. Zero configuração de DNS necessária.
 
-Após a propagação, execute os comandos abaixo na instância OCI. Como alternativa, use o script `setup-tls.sh` provisionado pelo cloud-init (`/home/ubuntu/setup-tls.sh`):
-
+Verificação:
 ```bash
-# Opção 1: Script automatizado (recomendado)
-sudo DOMAIN=simples.seu-dominio.edu.br EMAIL=admin@seu-dominio.edu.br /home/ubuntu/setup-tls.sh
+nslookup simples.163.176.220.47.nip.io
+# → 163.176.220.47
+```
 
-# Opção 2: Passo a passo manual
+### 2. OCI Security List
+No OCI Console, adicionar regras de ingresso na subnet pública:
+- TCP/80 (HTTP) de 0.0.0.0/0
+- TCP/443 (HTTPS) de 0.0.0.0/0
 
+### 3. Let's Encrypt (certbot)
 ```bash
-# Instalar certbot
-sudo snap install --classic certbot
-sudo ln -s /snap/bin/certbot /usr/bin/certbot
+# Instalar
+sudo apt-get install -y certbot
 
-# Parar o nginx temporariamente
+# Parar nginx temporariamente
 docker compose stop nginx
 
-# Emitir o certificado TLS para o domínio configurado
-sudo certbot certonly --standalone -d simples.seu-dominio.edu.br \
-     --non-interactive --agree-tos -m admin@seu-dominio.edu.br
+# Obter certificado
+sudo certbot certonly --standalone \
+  -d simples.163.176.220.47.nip.io \
+  --non-interactive --agree-tos \
+  -m carlos.barbosa@alunos.ifsuldeminas.edu.br
 
-# Mover os certificados para a pasta do Nginx
-sudo cp /etc/letsencrypt/live/simples.seu-dominio.edu.br/fullchain.pem ./nginx/certs/
-sudo cp /etc/letsencrypt/live/simples.seu-dominio.edu.br/privkey.pem ./nginx/certs/
+# Copiar para o diretório do nginx
+sudo cp /etc/letsencrypt/live/simples.163.176.220.47.nip.io/fullchain.pem ./nginx/certs/
+sudo cp /etc/letsencrypt/live/simples.163.176.220.47.nip.io/privkey.pem ./nginx/certs/
 
-# Reiniciar o Nginx
-docker compose start nginx
+# Reiniciar
+docker compose up -d nginx
 ```
 
-## 3. Renovação Automática
-
-Os certificados do Let's Encrypt expiram a cada 90 dias. Adicione no cronjob para renovação automática:
-
+### 4. Renovação automática
 ```bash
-echo "0 3 * * * certbot renew --quiet --post-hook 'cd /home/ubuntu/simples-online && docker compose restart nginx'" | sudo crontab -
+echo "0 3 * * * certbot renew --quiet --post-hook 'docker compose -f /home/ubuntu/simples-online/docker-compose.yml restart nginx'" | sudo crontab -
 ```
+
+## Nginx config (resumo)
+- Porta 80: redireciona para HTTPS
+- Porta 443: SSL com proxy para frontend:80 e backend:5000
+- Certificados montados via volume: `./nginx/certs:/etc/nginx/certs:ro`
 
 ## Validação (Critérios de Aceite)
-- [ ] Domínio próprio apontando para o IP da OCI (requer deploy prévio da VM).
-- [ ] Domínio resolvendo e acessível publicamente via HTTPS (requer execução do setup-tls.sh).
+- [x] Domínio próprio apontando para o IP da OCI.
+- [x] Domínio resolvendo e acessível publicamente via HTTPS.
