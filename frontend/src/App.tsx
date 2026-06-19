@@ -125,12 +125,16 @@ function App() {
   const fitRef = useRef<FitAddon | null>(null);
   const examplesRef = useRef<HTMLDivElement>(null);
 
+  // Refs para evitar stale closures nos callbacks do terminal/WebSocket
+  const handleRunRef = useRef<() => void>(() => {});
+  const isExecutingRef = useRef(false);
+  const handleWsMessageRef = useRef<(msg: Record<string, unknown>) => void>(() => {});
+
   // State
   const [code, setCode] = useState(DEFAULT_CODE);
   const [asmOutput, setAsmOutput] = useState<string | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileErrors, setCompileErrors] = useState<CompileError[]>([]);
-  const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
@@ -201,12 +205,23 @@ function App() {
     termRef.current = term;
     fitRef.current = fit;
 
-    // Banner
-    term.writeln("\x1b[1;36m┌─────────────────────────────────────────┐\x1b[0m");
-    term.writeln("\x1b[1;36m│\x1b[0m  \x1b[1;33mSimples Editor — Terminal Interativo\x1b[0m     \x1b[1;36m│\x1b[0m");
-    term.writeln("\x1b[1;36m│\x1b[0m  Digite 'run' ou pressione ▶ Compilar      \x1b[1;36m│\x1b[0m");
-    term.writeln("\x1b[1;36m└─────────────────────────────────────────┘\x1b[0m");
-    term.write("\r\n$ ");
+    // Banner inicial (bordas alinhadas, 44 colunas)
+    const W = 44;
+    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+    const boxTop = "\x1b[1;36m┌" + "─".repeat(W-2) + "┐\x1b[0m";
+    const boxBot = "\x1b[1;36m└" + "─".repeat(W-2) + "┘\x1b[0m";
+    const pad = (text: string) => {
+      const visible = stripAnsi(text);
+      const inner = W - 2;
+      const padding = Math.max(0, inner - visible.length - 1);
+      return "\x1b[1;36m│\x1b[0m " + text + " ".repeat(padding) + "\x1b[1;36m│\x1b[0m";
+    };
+
+    term.writeln(boxTop);
+    term.writeln(pad("\x1b[1;33mSimples Editor — Terminal Interativo\x1b[0m"));
+    term.writeln(pad("Aguardando conexão com o servidor..."));
+    term.writeln(boxBot);
+    term.write("\x1b[?25l");
 
     let inputBuffer = "";
 
@@ -215,9 +230,9 @@ function App() {
         const line = inputBuffer;
         term.write("\r\n");
         if (line.trim() === "run") {
-          handleRun();
+          handleRunRef.current();
         } else if (wsRef.current?.readyState === WebSocket.OPEN) {
-          if (isExecuting) {
+          if (isExecutingRef.current) {
             wsRef.current.send(JSON.stringify({ type: "stdin", data: line + "\n" }));
           } else {
             term.writeln("\x1b[1;33mExecute com 'run' ou ▶ Compilar\x1b[0m");
@@ -269,14 +284,20 @@ function App() {
       ws.onopen = () => {
         if (!mounted) return;
         setWsConnected(true);
-        termRef.current?.writeln("\x1b[1;32m✓ Conectado ao servidor de execução\x1b[0m");
+        // Limpa banner de "Aguardando" e mostra prompt ativo
+        const term = termRef.current;
+        if (term) {
+          term.write("\x1b[?25h"); // mostra cursor
+          term.writeln("\x1b[1;32m✓ Conectado ao servidor\x1b[0m");
+          term.write("$ ");
+        }
       };
 
       ws.onmessage = (event) => {
         if (!mounted) return;
         try {
           const msg = JSON.parse(event.data as string);
-          handleWsMessage(msg);
+          handleWsMessageRef.current(msg);
         } catch { /* ignore */ }
       };
 
@@ -284,14 +305,24 @@ function App() {
         if (!mounted) return;
         setWsConnected(false);
         setIsExecuting(false);
+        const term = termRef.current;
+        if (term) {
+          term.write("\x1b[?25l"); // esconde cursor
+          term.writeln("\x1b[1;33m⏼ Desconectado do servidor\x1b[0m");
+        }
+      };
+      ws.onerror = () => {
+        if (!mounted) return;
+        const term = termRef.current;
+        if (term) {
+          term.writeln("\x1b[1;31m✗ Erro de conexão com servidor\x1b[0m");
+        }
       };
     }
 
     connect();
     return () => { mounted = false; ws?.close(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── WebSocket Message Handler ───────────────────────────────────────────
 
   const handleWsMessage = useCallback((msg: Record<string, unknown>) => {
     const type = msg.type as string;
@@ -349,6 +380,14 @@ function App() {
     }
   }, [setEditorMarkers]);
 
+  // Sincroniza refs para evitar stale closures
+  handleWsMessageRef.current = handleWsMessage;
+
+  // Sincroniza isExecuting com a ref (usada no terminal e WebSocket)
+  useEffect(() => {
+    isExecutingRef.current = isExecuting;
+  }, [isExecuting]);
+
   // ── Actions ─────────────────────────────────────────────────────────────
 
   const handleRun = useCallback(() => {
@@ -393,13 +432,16 @@ function App() {
       .finally(() => setIsCompiling(false));
   }, [code, clearEditorMarkers, setEditorMarkers]);
 
+  // Sincroniza ref para evitar stale closure no terminal
+  handleRunRef.current = handleRun;
+
   const handleStop = useCallback(() => {
     const ws = wsRef.current;
-    if (ws?.readyState === WebSocket.OPEN && isExecuting) {
+    if (ws?.readyState === WebSocket.OPEN && isExecutingRef.current) {
       ws.send(JSON.stringify({ type: "stop" }));
       termRef.current?.writeln("\x1b[1;33m⏹ Parando execução...\x1b[0m");
     }
-  }, [isExecuting]);
+  }, []);
 
   const handleClear = useCallback(() => {
     termRef.current?.clear();
@@ -490,7 +532,7 @@ function App() {
           <button
             onClick={handleStop}
             disabled={!isExecuting}
-            className="px-3 py-1 bg-red-800 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-sm rounded transition-colors"
+            className="px-3 py-1 bg-red-900 hover:bg-red-800 disabled:bg-gray-800 disabled:text-gray-500 disabled:cursor-not-allowed text-sm rounded transition-colors text-red-200"
           >
             ■ Parar
           </button>
@@ -624,7 +666,7 @@ function App() {
             <div className="h-full border-t border-gray-800 flex flex-col">
               <div className="px-3 py-1 bg-gray-900 border-b border-gray-800 text-xs text-gray-500 uppercase tracking-wider flex items-center justify-between">
                 <span>Terminal</span>
-                <span className="text-gray-600">
+                <span className={wsConnected ? "text-green-400" : "text-yellow-500"}>
                   {isExecuting ? "Executando..." : wsConnected ? "Conectado" : "Desconectado"}
                 </span>
               </div>

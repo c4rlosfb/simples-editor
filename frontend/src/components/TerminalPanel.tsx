@@ -3,14 +3,17 @@
  *
  * Conecta ao backend via WebSocket /ws/run para stdin/stdout em tempo real.
  * Suporta resize automático com FitAddon.
+ * Expõe métodos imperativos (write, writeln, clear, focus) via ref.
  *
  * Referência: PRD §8.1 e §12.1
  */
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import "xterm/css/xterm.css";
+
+// ── Types ──────────────────────────────────────────────────────────────────
 
 interface TerminalPanelProps {
   /** Linhas a serem escritas no terminal (append-only) */
@@ -22,6 +25,16 @@ interface TerminalPanelProps {
   /** Tema customizado (opcional, usa dark padrão) */
   theme?: Record<string, string>;
 }
+
+/** Métodos expostos via ref */
+export interface TerminalPanelHandle {
+  write(data: string): void;
+  writeln(data: string): void;
+  clear(): void;
+  focus(): void;
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
 
 const DEFAULT_THEME = {
   background: "#1e1e2e",
@@ -39,134 +52,146 @@ const DEFAULT_THEME = {
   white: "#e5e7eb",
 };
 
-function TerminalPanel({
-  lines = [],
-  onInput,
-  interactive = true,
-  theme = DEFAULT_THEME,
-}: TerminalPanelProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const linesRendered = useRef(0);
-  const inputBuffer = useRef("");
+// ── Component ──────────────────────────────────────────────────────────────
 
-  // Inicializa o terminal uma vez
-  useEffect(() => {
-    if (!containerRef.current) return;
+const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(
+  function TerminalPanel(
+    { lines = [], onInput, interactive = true, theme = DEFAULT_THEME },
+    ref,
+  ) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const termRef = useRef<Terminal | null>(null);
+    const fitRef = useRef<FitAddon | null>(null);
+    const linesRendered = useRef(0);
+    const inputBuffer = useRef("");
 
-    const term = new Terminal({
-      theme,
-      fontSize: 14,
-      fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace",
-      cursorBlink: true,
-      cursorStyle: "bar",
-      allowProposedApi: true,
-      scrollback: 5000,
-      tabStopWidth: 2,
-    });
+    // ── Expor métodos imperativos ──────────────────────────────────────────
 
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    term.open(containerRef.current);
-    fit.fit();
+    useImperativeHandle(ref, () => ({
+      write(data: string) {
+        termRef.current?.write(data);
+      },
+      writeln(data: string) {
+        termRef.current?.writeln(data);
+      },
+      clear() {
+        termRef.current?.clear();
+        linesRendered.current = 0;
+        termRef.current?.write("$ ");
+      },
+      focus() {
+        termRef.current?.focus();
+      },
+    }), []);
 
-    termRef.current = term;
-    fitRef.current = fit;
+    // ── Inicializa o terminal uma vez ──────────────────────────────────────
 
-    // Banner de boas-vindas
-    term.writeln("\x1b[1;36m┌─────────────────────────────────────────┐\x1b[0m");
-    term.writeln("\x1b[1;36m│\x1b[0m  \x1b[1;33mSimples Editor — Terminal Interativo\x1b[0m     \x1b[1;36m│\x1b[0m");
-    term.writeln("\x1b[1;36m│\x1b[0m  Pressione Run para compilar e executar   \x1b[1;36m│\x1b[0m");
-    term.writeln("\x1b[1;36m└─────────────────────────────────────────┘\x1b[0m");
-    term.write("\r\n$ ");
+    useEffect(() => {
+      if (!containerRef.current) return;
 
-    // Captura input do teclado
-    if (interactive && onInput) {
-      term.onData((data) => {
-        // Enter → envia buffer
-        if (data === "\r" || data === "\n") {
-          const line = inputBuffer.current;
-          term.write("\r\n");
-          onInput(line + "\n");
-          inputBuffer.current = "";
-          term.write("$ ");
-          return;
-        }
-
-        // Backspace
-        if (data === "\x7f" || data === "\b") {
-          if (inputBuffer.current.length > 0) {
-            inputBuffer.current = inputBuffer.current.slice(0, -1);
-            term.write("\b \b");
-          }
-          return;
-        }
-
-        // Caracteres imprimíveis
-        if (data >= " ") {
-          inputBuffer.current += data;
-          term.write(data);
-        }
+      const term = new Terminal({
+        theme,
+        fontSize: 14,
+        fontFamily: "'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace",
+        cursorBlink: true,
+        cursorStyle: "bar",
+        allowProposedApi: true,
+        scrollback: 5000,
+        tabStopWidth: 2,
       });
-    }
 
-    return () => {
-      term.dispose();
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      const fit = new FitAddon();
+      term.loadAddon(fit);
+      term.open(containerRef.current);
+      fit.fit();
 
-  // Append novas linhas (não re-renderiza tudo, só o delta)
-  useEffect(() => {
-    const term = termRef.current;
-    if (!term) return;
+      termRef.current = term;
+      fitRef.current = fit;
 
-    const newLines = lines.slice(linesRendered.current);
-    for (const line of newLines) {
-      term.writeln(line);
-    }
-    linesRendered.current = lines.length;
-  }, [lines]);
+      // Banner de boas-vindas
+      term.writeln("\x1b[1;36m┌─────────────────────────────────────────┐\x1b[0m");
+      term.writeln("\x1b[1;36m│\x1b[0m  \x1b[1;33mSimples Editor — Terminal Interativo\x1b[0m     \x1b[1;36m│\x1b[0m");
+      term.writeln("\x1b[1;36m│\x1b[0m  Pressione Run para compilar e executar   \x1b[1;36m│\x1b[0m");
+      term.writeln("\x1b[1;36m└─────────────────────────────────────────┘\x1b[0m");
+      term.write("\r\n$ ");
 
-  // Resize no redimensionamento da janela
-  useEffect(() => {
-    const handleResize = () => {
-      try {
-        fitRef.current?.fit();
-      } catch {
-        // Fit pode falhar se o container não estiver visível
+      // Captura input do teclado
+      if (interactive && onInput) {
+        term.onData((data) => {
+          if (data === "\r" || data === "\n") {
+            const line = inputBuffer.current;
+            term.write("\r\n");
+            onInput(line + "\n");
+            inputBuffer.current = "";
+            term.write("$ ");
+            return;
+          }
+          if (data === "\x7f" || data === "\b") {
+            if (inputBuffer.current.length > 0) {
+              inputBuffer.current = inputBuffer.current.slice(0, -1);
+              term.write("\b \b");
+            }
+            return;
+          }
+          if (data >= " ") {
+            inputBuffer.current += data;
+            term.write(data);
+          }
+        });
       }
-    };
 
-    // ResizeObserver para detectar mudanças no container
-    const observer = new ResizeObserver(handleResize);
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
+      return () => {
+        term.dispose();
+      };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    window.addEventListener("resize", handleResize);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
+    // ── Append novas linhas (delta, não re-renderiza tudo) ─────────────────
 
-  /** Limpa o terminal e reseta o contador de linhas */
-  const clearTerminal = useCallback(() => {
-    termRef.current?.clear();
-    linesRendered.current = 0;
-    termRef.current?.write("$ ");
-  }, []);
+    useEffect(() => {
+      const term = termRef.current;
+      if (!term) return;
 
-  // Expor clearTerminal via ref (opcional)
-  return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-      style={{ background: theme.background }}
-    />
-  );
-}
+      const newLines = lines.slice(linesRendered.current);
+      for (const line of newLines) {
+        term.writeln(line);
+      }
+      linesRendered.current = lines.length;
+    }, [lines]);
+
+    // ── Resize no redimensionamento da janela ──────────────────────────────
+
+    useEffect(() => {
+      const handleResize = () => {
+        try {
+          fitRef.current?.fit();
+        } catch {
+          // Fit pode falhar se o container não estiver visível
+        }
+      };
+
+      const observer = new ResizeObserver(handleResize);
+      if (containerRef.current) {
+        observer.observe(containerRef.current);
+      }
+
+      window.addEventListener("resize", handleResize);
+      return () => {
+        observer.disconnect();
+        window.removeEventListener("resize", handleResize);
+      };
+    }, []);
+
+    // ── Render ─────────────────────────────────────────────────────────────
+
+    return (
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        style={{ background: theme.background }}
+      />
+    );
+  },
+);
 
 export default TerminalPanel;
 export type { TerminalPanelProps };

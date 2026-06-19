@@ -104,7 +104,10 @@ def register_ws(app):
             _authenticate_ws(ws, conn)
 
             # Main message loop — the ONLY consumer of the WebSocket
-            for raw_message in ws:
+            while True:
+                raw_message = ws.receive()
+                if raw_message is None:
+                    break
                 try:
                     msg = json.loads(raw_message)
                     msg_type = msg.get("type", "")

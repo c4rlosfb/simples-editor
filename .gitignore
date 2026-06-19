@@ -31,3 +31,10 @@ terraform.tfvars
 # OS
 Thumbs.db
 .DS_Store
+simples-compiler/
+__pycache__/
+frontend/test-results/
+
+# Nginx — certificados SSL NUNCA versionados
+nginx/certs/*
+!nginx/certs/.gitkeep
