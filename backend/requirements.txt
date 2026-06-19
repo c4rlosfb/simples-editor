@@ -9,3 +9,8 @@ PyJWT==2.10.*
 supabase==2.10.*
 prometheus-client==0.21.*
 flask-limiter==3.10.*
+
+# Testes
+pytest==8.*
+pytest-asyncio==1.*
+pytest-cov==7.*
