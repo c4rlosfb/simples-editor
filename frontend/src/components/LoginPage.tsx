@@ -1,6 +1,6 @@
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { supabase } from "src/lib/supabase";
+import { supabase } from "../lib/supabase";
 
 const siteUrl = import.meta.env.VITE_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
 

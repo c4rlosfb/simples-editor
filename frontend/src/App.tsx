@@ -327,6 +327,7 @@ function App() {
 
       case "asm_generated":
         setAsmOutput((msg.asm as string) || "");
+        setIsCompiling(false);
         termRef.current?.writeln("\x1b[1;32m✓ Compilação concluída (NASM gerado)\x1b[0m");
         break;
 
@@ -344,6 +345,7 @@ function App() {
         break;
 
       case "compile_error": {
+        setIsCompiling(false);
         const rawErrors = msg.errors as CompileError[] | undefined;
         const errors: CompileError[] = rawErrors?.length ? rawErrors : [{
           line: (msg.line as number) || 0,
@@ -384,37 +386,39 @@ function App() {
     setCompileErrors([]);
     clearEditorMarkers();
 
-    // First, compile via REST
-    fetch("/api/compile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: currentCode }),
-    })
-      .then((res) => res.json())
-      .then((data: { success: boolean; asm?: string; errors?: CompileError[] }) => {
-        if (data.success) {
-          setAsmOutput(data.asm || "");
-          // Now execute via WebSocket
-          const ws = wsRef.current;
-          if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "compile_and_run", code: currentCode }));
+    // Send via WebSocket — o handler WS compila, retorna NASM (asm_generated)
+    // e executa em uma única requisição. Evita compilar DUAS vezes.
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "compile_and_run", code: currentCode }));
+    } else {
+      // Fallback: WebSocket não conectado — compila via REST (somente NASM)
+      fetch("/api/compile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: currentCode }),
+      })
+        .then((res) => res.json())
+        .then((data: { success: boolean; asm?: string; errors?: CompileError[] }) => {
+          if (data.success) {
+            setAsmOutput(data.asm || "");
+          } else {
+            const errors = data.errors?.length ? data.errors : [{
+              line: 0, column: 0, message: "Erro de compilação", phase: "compiler",
+            }];
+            setCompileErrors(errors);
+            setEditorMarkers(errors);
           }
-        } else {
-          const errors = data.errors?.length ? data.errors : [{
-            line: 0, column: 0, message: "Erro de compilação", phase: "compiler",
-          }];
-          setCompileErrors(errors);
-          setEditorMarkers(errors);
-        }
-      })
-      .catch((e) => {
-        setCompileErrors([{
-          line: 0, column: 0,
-          message: `Erro de rede: ${e instanceof Error ? e.message : String(e)}`,
-          phase: "network",
-        }]);
-      })
-      .finally(() => setIsCompiling(false));
+        })
+        .catch((e) => {
+          setCompileErrors([{
+            line: 0, column: 0,
+            message: `Erro de rede: ${e instanceof Error ? e.message : String(e)}`,
+            phase: "network",
+          }]);
+        })
+        .finally(() => setIsCompiling(false));
+    }
   }, [code, clearEditorMarkers, setEditorMarkers]);
 
   const handleStop = useCallback(() => {
