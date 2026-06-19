@@ -722,7 +722,7 @@ function App() {
                   {isExecuting ? "Executando..." : wsConnected ? "Conectado" : "Desconectado"}
                 </span>
               </div>
-              <div ref={terminalRef} className="flex-1" style={{ background: "#1e1e2e" }} />
+              <div ref={terminalRef} className="flex-1 min-h-[120px]" style={{ background: "#1e1e2e" }} />
             </div>
           </Panel>
         </PanelGroup>
